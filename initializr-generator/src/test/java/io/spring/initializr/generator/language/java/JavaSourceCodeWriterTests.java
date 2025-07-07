@@ -29,15 +29,13 @@ import java.util.UUID;
 import java.util.function.Consumer;
 
 import io.spring.initializr.generator.io.IndentingWriterFactory;
+import io.spring.initializr.generator.language.*;
 import io.spring.initializr.generator.language.Annotation.Builder;
-import io.spring.initializr.generator.language.ClassName;
-import io.spring.initializr.generator.language.CodeBlock;
-import io.spring.initializr.generator.language.Language;
-import io.spring.initializr.generator.language.Parameter;
-import io.spring.initializr.generator.language.SourceStructure;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import org.springframework.context.annotation.PropertySource;
+import org.springframework.context.annotation.PropertySources;
 import org.springframework.util.StreamUtils;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -325,6 +323,26 @@ class JavaSourceCodeWriterTests {
 		assertThat(lines).containsExactly("package com.example;", "", "import com.example.another.MyService;",
 				"import com.example.stereotype.Service;", "", "class Test {", "",
 				"    void something(@Service MyService service) {", "    }", "", "}");
+	}
+
+	@Test
+	void test1() throws IOException {
+		JavaSourceCode sourceCode = new JavaSourceCode();
+		JavaCompilationUnit compilationUnit = sourceCode.createCompilationUnit("com.example", "Test");
+		JavaTypeDeclaration test = compilationUnit.createTypeDeclaration("Test");
+		Annotation annotation1 = Annotation.of(ClassName.of(PropertySource.class))
+				.set("value", "classpath:1.properties")
+				.build();
+		Annotation annotation2 = Annotation.of(ClassName.of(PropertySource.class))
+				.set("value", "classpath:2.properties")
+				.build();
+		test.annotations()
+				.add(ClassName.of(PropertySources.class),
+						(annotation) -> annotation.set("value", annotation1, annotation2));
+		List<String> lines = writeSingleType(sourceCode, "com/example/Test.java");
+		System.out.println("------------------------------------------- start");
+		lines.forEach(System.out::println);
+		System.out.println("------------------------------------------- end");
 	}
 
 	private List<String> writeSingleType(JavaSourceCode sourceCode, String location) throws IOException {
