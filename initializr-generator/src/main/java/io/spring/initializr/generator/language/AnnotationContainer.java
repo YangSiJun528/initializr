@@ -16,9 +16,13 @@
 
 package io.spring.initializr.generator.language;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import io.spring.initializr.generator.language.Annotation.Builder;
@@ -30,15 +34,25 @@ import io.spring.initializr.generator.language.Annotation.Builder;
  */
 public class AnnotationContainer {
 
-	private final Map<ClassName, Builder> annotations;
+	private final Map<ClassName, List<Builder>> annotations;
 
 	public AnnotationContainer() {
 		this(new LinkedHashMap<>());
 	}
 
-	private AnnotationContainer(Map<ClassName, Builder> annotations) {
-		this.annotations = annotations;
-	}
+    public AnnotationContainer(Map<ClassName, Builder> singleAnnotations) {
+        this.annotations = new LinkedHashMap<>();
+        singleAnnotations.forEach((className, builder) ->
+                this.annotations.put(className, Arrays.asList(builder)));
+    }
+
+    public AnnotationContainer(Map<ClassName, List<Builder>> listAnnotations, boolean isList) {
+        if (!isList) {
+            throw new IllegalArgumentException("isList parameter must be true when using this constructor");
+        }
+        this.annotations = new LinkedHashMap<>();
+        this.annotations.putAll(listAnnotations);
+    }
 
 	/**
 	 * Specify if this container is empty.
@@ -62,7 +76,9 @@ public class AnnotationContainer {
 	 * @return the annotations
 	 */
 	public Stream<Annotation> values() {
-		return this.annotations.values().stream().map(Builder::build);
+		return this.annotations.values().stream()
+				.flatMap(List::stream)
+				.map(Builder::build);
 	}
 
 	/**
@@ -73,9 +89,15 @@ public class AnnotationContainer {
 	 * @param annotation a {@link Consumer} to customize the {@link Annotation}
 	 */
 	public void add(ClassName className, Consumer<Builder> annotation) {
-		Builder builder = this.annotations.computeIfAbsent(className, (key) -> new Builder(className));
+		List<Builder> builders = this.annotations.computeIfAbsent(className,
+				(key) -> new ArrayList<>());
+
+		if (builders.isEmpty()) {
+			builders.add(new Builder(className));
+		}
+
 		if (annotation != null) {
-			annotation.accept(builder);
+			annotation.accept(builders.get(0));
 		}
 	}
 
@@ -98,9 +120,14 @@ public class AnnotationContainer {
 	}
 
 	public AnnotationContainer deepCopy() {
-		Map<ClassName, Builder> copy = new LinkedHashMap<>();
-		this.annotations.forEach((className, builder) -> copy.put(className, new Builder(builder)));
-		return new AnnotationContainer(copy);
+		Map<ClassName, List<Builder>> copy = new LinkedHashMap<>();
+		this.annotations.forEach((className, builders) -> {
+			List<Builder> copiedBuilders = builders.stream()
+					.map(Builder::new)
+					.collect(Collectors.toList());
+			copy.put(className, copiedBuilders);
+		});
+		return new AnnotationContainer(copy, true);
 	}
 
 }
