@@ -30,12 +30,12 @@ public final class Parameter implements Annotatable {
 
 	private final String type;
 
-	private final AnnotationContainer annotations;
+	private final AnnotationHolder annotations;
 
 	private Parameter(Builder builder) {
 		this.name = builder.name;
 		this.type = builder.type;
-		this.annotations = builder.annotations.deepCopy();
+		this.annotations = builder.annotations;
 	}
 
 	/**
@@ -94,7 +94,7 @@ public final class Parameter implements Annotatable {
 	}
 
 	@Override
-	public AnnotationContainer annotations() {
+	public AnnotationHolder annotations() {
 		return this.annotations;
 	}
 
@@ -107,7 +107,7 @@ public final class Parameter implements Annotatable {
 
 		private String type;
 
-		private final AnnotationContainer annotations = new AnnotationContainer();
+		private final AnnotationHolder annotations = new AnnotationContainer();
 
 		Builder(String name) {
 			this.name = name;

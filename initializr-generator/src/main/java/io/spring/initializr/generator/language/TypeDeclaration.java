@@ -28,7 +28,7 @@ import java.util.List;
  */
 public class TypeDeclaration implements Annotatable {
 
-	private final AnnotationContainer annotations = new AnnotationContainer();
+	private final AnnotationHolder annotations = new AnnotationContainer();
 
 	private final String name;
 
@@ -69,7 +69,7 @@ public class TypeDeclaration implements Annotatable {
 	}
 
 	@Override
-	public AnnotationContainer annotations() {
+	public AnnotationHolder annotations() {
 		return this.annotations;
 	}
 

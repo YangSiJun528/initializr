@@ -18,6 +18,7 @@ package io.spring.initializr.generator.language.groovy;
 
 import io.spring.initializr.generator.language.Annotatable;
 import io.spring.initializr.generator.language.AnnotationContainer;
+import io.spring.initializr.generator.language.AnnotationHolder;
 
 /**
  * Declaration of a field written in Groovy.
@@ -26,7 +27,7 @@ import io.spring.initializr.generator.language.AnnotationContainer;
  */
 public final class GroovyFieldDeclaration implements Annotatable {
 
-	private final AnnotationContainer annotations = new AnnotationContainer();
+	private final AnnotationHolder annotations;
 
 	private final int modifiers;
 
@@ -39,11 +40,16 @@ public final class GroovyFieldDeclaration implements Annotatable {
 	private final boolean initialized;
 
 	private GroovyFieldDeclaration(Builder builder) {
+		this(builder, new AnnotationContainer());
+	}
+
+	private GroovyFieldDeclaration(Builder builder, AnnotationHolder annotations) {
 		this.modifiers = builder.modifiers;
 		this.name = builder.name;
 		this.returnType = builder.returnType;
 		this.value = builder.value;
 		this.initialized = builder.initialized;
+		this.annotations = annotations;
 	}
 
 	/**
@@ -56,7 +62,7 @@ public final class GroovyFieldDeclaration implements Annotatable {
 	}
 
 	@Override
-	public AnnotationContainer annotations() {
+	public AnnotationHolder annotations() {
 		return this.annotations;
 	}
 
@@ -147,7 +153,7 @@ public final class GroovyFieldDeclaration implements Annotatable {
 		 */
 		public GroovyFieldDeclaration returning(String returnType) {
 			this.returnType = returnType;
-			return new GroovyFieldDeclaration(this);
+			return new GroovyFieldDeclaration(this, new AnnotationContainer());
 		}
 
 	}
