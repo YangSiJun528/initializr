@@ -29,12 +29,8 @@ import java.util.UUID;
 import java.util.function.Consumer;
 
 import io.spring.initializr.generator.io.IndentingWriterFactory;
+import io.spring.initializr.generator.language.*;
 import io.spring.initializr.generator.language.Annotation.Builder;
-import io.spring.initializr.generator.language.ClassName;
-import io.spring.initializr.generator.language.CodeBlock;
-import io.spring.initializr.generator.language.Language;
-import io.spring.initializr.generator.language.Parameter;
-import io.spring.initializr.generator.language.SourceStructure;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -325,6 +321,13 @@ class JavaSourceCodeWriterTests {
 		assertThat(lines).containsExactly("package com.example;", "", "import com.example.another.MyService;",
 				"import com.example.stereotype.Service;", "", "class Test {", "",
 				"    void something(@Service MyService service) {", "    }", "", "}");
+	}
+
+	@Test
+	void multipleAnnotationsWithSameType() throws IOException {
+		// Test with AnnotationContainer (single annotation per type)
+
+		// Test with MultipleAnnotationContainer (multiple annotations of same type)
 	}
 
 	private List<String> writeSingleType(JavaSourceCode sourceCode, String location) throws IOException {

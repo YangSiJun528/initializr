@@ -29,12 +29,8 @@ import java.util.UUID;
 import java.util.function.Consumer;
 
 import io.spring.initializr.generator.io.IndentingWriterFactory;
+import io.spring.initializr.generator.language.*;
 import io.spring.initializr.generator.language.Annotation.Builder;
-import io.spring.initializr.generator.language.ClassName;
-import io.spring.initializr.generator.language.CodeBlock;
-import io.spring.initializr.generator.language.Language;
-import io.spring.initializr.generator.language.Parameter;
-import io.spring.initializr.generator.language.SourceStructure;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -132,6 +128,13 @@ class GroovySourceCodeWriterTests {
 		assertThat(lines).containsExactly("package com.example", "", "import com.example.build.Interface1",
 				"import com.example.build.Interface2", "import com.example.build.TestParent", "",
 				"class Test extends TestParent implements Interface1, Interface2 {", "", "}");
+	}
+
+	@Test
+	void typeDeclarationWithAnnotationHolder() throws IOException {
+		// Test with AnnotationContainer (single annotation per type)
+
+		// Test with MultipleAnnotationContainer (multiple annotations of same type)
 	}
 
 	@Test
