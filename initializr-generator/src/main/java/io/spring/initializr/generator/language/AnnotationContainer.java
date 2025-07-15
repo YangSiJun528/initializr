@@ -30,13 +30,13 @@ import io.spring.initializr.generator.language.Annotation.Builder;
  */
 public class AnnotationContainer {
 
-	private final Map<ClassName, Builder> annotations;
+	private final Map<String, Builder> annotations;
 
 	public AnnotationContainer() {
 		this(new LinkedHashMap<>());
 	}
 
-	private AnnotationContainer(Map<ClassName, Builder> annotations) {
+	private AnnotationContainer(Map<String, Builder> annotations) {
 		this.annotations = annotations;
 	}
 
@@ -54,13 +54,19 @@ public class AnnotationContainer {
 	 * @return {@code true} if the annotation with the specified class name exists
 	 */
 	public boolean has(ClassName className) {
-		return this.annotations.containsKey(className);
+		return this.annotations.containsKey(className.getCanonicalName());
 	}
 
 	/**
-	 * Return the {@link Annotation annotations}.
-	 * @return the annotations
+	 * Specify if this instance contains an annotation with the specified name.
+	 * @param name the name of the annotation
+	 * @return {@code true} if an annotation with the specified name is present,
+	 * otherwise {@code false}
 	 */
+	public boolean has(String name) {
+		return this.annotations.containsKey(name);
+	}
+	
 	public Stream<Annotation> values() {
 		return this.annotations.values().stream().map(Builder::build);
 	}
@@ -73,7 +79,7 @@ public class AnnotationContainer {
 	 * @param annotation a {@link Consumer} to customize the {@link Annotation}
 	 */
 	public void add(ClassName className, Consumer<Builder> annotation) {
-		Builder builder = this.annotations.computeIfAbsent(className, (key) -> new Builder(className));
+		Builder builder = this.annotations.computeIfAbsent(className.getCanonicalName(), (key) -> new Builder(className));
 		if (annotation != null) {
 			annotation.accept(builder);
 		}
@@ -89,17 +95,45 @@ public class AnnotationContainer {
 	}
 
 	/**
+	 * Add an annotation with a specific name. If an annotation with the same name
+	 * already exists, it is replaced.
+	 * @param name the name of the annotation
+	 * @param className the class name of the annotation
+	 * @param annotation a {@link Consumer} to further configure the annotation
+	 */
+	public void add(String name, ClassName className, Consumer<Builder> annotation) {
+		Builder builder = this.annotations.computeIfAbsent(name, (key) -> new Builder(className));
+		if (annotation != null) {
+			annotation.accept(builder);
+		}
+	}
+
+	public void add(String name, ClassName className) {
+		add(name, className, null);
+	}
+
+	/**
 	 * Remove the annotation with the specified {@link ClassName}.
 	 * @param className the class name of the annotation
 	 * @return {@code true} if such an annotation exists, {@code false} otherwise
 	 */
 	public boolean remove(ClassName className) {
-		return this.annotations.remove(className) != null;
+		return this.annotations.remove(className.getCanonicalName()) != null;
 	}
 
+	/**
+	 * Remove the annotation with the specified name.
+	 * @param name the name of the annotation to remove
+	 * @return {@code true} if the annotation was removed, {@code false} otherwise
+	 */
+	public boolean remove(String name) {
+		return this.annotations.remove(name) != null;
+	}
+
+	
 	public AnnotationContainer deepCopy() {
-		Map<ClassName, Builder> copy = new LinkedHashMap<>();
-		this.annotations.forEach((className, builder) -> copy.put(className, new Builder(builder)));
+		Map<String, Builder> copy = new LinkedHashMap<>();
+		this.annotations.forEach((name, builder) -> copy.put(name, new Builder(builder)));
 		return new AnnotationContainer(copy);
 	}
 
