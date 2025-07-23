@@ -61,6 +61,8 @@ public class MutableProjectDescription implements ProjectDescription {
 
 	private String baseDirectory;
 
+	private String propertyType = "Properties";
+
 	/**
 	 * Creates a new instance.
 	 */
@@ -278,6 +280,19 @@ public class MutableProjectDescription implements ProjectDescription {
 	@Override
 	public String getBaseDirectory() {
 		return this.baseDirectory;
+	}
+
+	/**
+	 * A aa.
+	 * @param propertyType a aa
+	 */
+	public void setPropertyType(String propertyType) {
+		this.propertyType = propertyType;
+	}
+
+	@Override
+	public String getPropertyType() {
+		return this.propertyType;
 	}
 
 	/**

@@ -119,4 +119,6 @@ public interface ProjectDescription {
 	 */
 	String getBaseDirectory();
 
+	String getPropertyType();
+
 }

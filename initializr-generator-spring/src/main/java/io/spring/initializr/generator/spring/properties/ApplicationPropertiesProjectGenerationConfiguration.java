@@ -30,7 +30,16 @@ import org.springframework.context.annotation.Bean;
 class ApplicationPropertiesProjectGenerationConfiguration {
 
 	@Bean
+	@ConditionalOnProperties(ApplicationPropertiesType.ID.PROPERTIES)
 	ApplicationProperties applicationProperties(ObjectProvider<ApplicationPropertiesCustomizer> customizers) {
+		ApplicationProperties properties = new ApplicationProperties();
+		customizers.orderedStream().forEach((customizer) -> customizer.customize(properties));
+		return properties;
+	}
+
+	@Bean
+	@ConditionalOnProperties(ApplicationPropertiesType.ID.YAML)
+	ApplicationProperties applicationYamlProperties(ObjectProvider<ApplicationPropertiesCustomizer> customizers) {
 		ApplicationProperties properties = new ApplicationProperties();
 		customizers.orderedStream().forEach((customizer) -> customizer.customize(properties));
 		return properties;
