@@ -22,6 +22,7 @@ import io.spring.initializr.generator.buildsystem.BuildSystem;
 import io.spring.initializr.generator.buildsystem.Dependency;
 import io.spring.initializr.generator.language.Language;
 import io.spring.initializr.generator.packaging.Packaging;
+import io.spring.initializr.generator.properties.PropertiesType;
 import io.spring.initializr.generator.version.Version;
 
 /**
@@ -118,5 +119,11 @@ public interface ProjectDescription {
 	 * @return the base directory
 	 */
 	String getBaseDirectory();
+
+	/**
+	 * Return the properties file extension type of the project.
+	 * @return the file extension type
+	 */
+	PropertiesType getPropertiesType();
 
 }

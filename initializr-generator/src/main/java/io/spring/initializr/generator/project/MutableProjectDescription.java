@@ -24,6 +24,8 @@ import io.spring.initializr.generator.buildsystem.BuildSystem;
 import io.spring.initializr.generator.buildsystem.Dependency;
 import io.spring.initializr.generator.language.Language;
 import io.spring.initializr.generator.packaging.Packaging;
+import io.spring.initializr.generator.properties.PropertiesType;
+import io.spring.initializr.generator.properties.properties.PropertiesPropertiesType;
 import io.spring.initializr.generator.version.Version;
 
 import org.springframework.util.StringUtils;
@@ -60,6 +62,9 @@ public class MutableProjectDescription implements ProjectDescription {
 	private String packageName;
 
 	private String baseDirectory;
+
+	// TODO: 일단 호환성 지켜야해서
+	private PropertiesType propertiesType = new PropertiesPropertiesType();
 
 	/**
 	 * Creates a new instance.
@@ -278,6 +283,19 @@ public class MutableProjectDescription implements ProjectDescription {
 	@Override
 	public String getBaseDirectory() {
 		return this.baseDirectory;
+	}
+
+	/**
+	 * Sets the properties type.
+	 * @param propertiesType the properties type
+	 */
+	public void setPropertiesType(PropertiesType propertiesType) {
+		this.propertiesType = propertiesType;
+	}
+
+	@Override
+	public PropertiesType getPropertiesType() {
+		return this.propertiesType;
 	}
 
 	/**

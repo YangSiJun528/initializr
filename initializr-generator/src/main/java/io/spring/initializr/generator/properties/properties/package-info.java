@@ -14,21 +14,7 @@
  * limitations under the License.
  */
 
-package io.spring.initializr.generator.properties;
-
 /**
- * A factory for creating {@link PropertiesType}.
- *
- * @author Bondit Manager
+ * Properties properties.
  */
-@FunctionalInterface
-public interface PropertiesTypeFactory {
-
-	/**
-	 * Creates a {@link PropertiesType} for the given id.
-	 * @param id the id of the properties type
-	 * @return the properties type or {@code null} if the id is not supported
-	 */
-	PropertiesType create(String id);
-
-}
+package io.spring.initializr.generator.properties.properties;

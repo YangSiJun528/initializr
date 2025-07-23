@@ -27,25 +27,26 @@ import org.springframework.core.io.support.SpringFactoriesLoader;
  */
 public interface PropertiesType {
 
-    /**
-     * Return the id of the properties type.
-     * @return the id
-     */
-    String id();
+	/**
+	 * Return the id of the properties type.
+	 * @return the id
+	 */
+	String id();
 
-    /**
-     * Creates the properties type for the given id.
-     * @param id the id
-     * @return the properties type
-     * @throws IllegalStateException if the properties type with the given id can't be found
-     */
-    static PropertiesType forId(String id) {
-        return SpringFactoriesLoader.loadFactories(PropertiesTypeFactory.class, PropertiesType.class.getClassLoader())
-                .stream()
-                .map((factory) -> factory.create(id))
-                .filter(Objects::nonNull)
-                .findFirst()
-                .orElseThrow(() -> new IllegalStateException("Unrecognized properties type id '" + id + "'"));
-    }
+	/**
+	 * Creates the properties type for the given id.
+	 * @param id the id
+	 * @return the properties type
+	 * @throws IllegalStateException if the properties type with the given id can't be
+	 * found
+	 */
+	static PropertiesType forId(String id) {
+		return SpringFactoriesLoader.loadFactories(PropertiesTypeFactory.class, PropertiesType.class.getClassLoader())
+			.stream()
+			.map((factory) -> factory.create(id))
+			.filter(Objects::nonNull)
+			.findFirst()
+			.orElseThrow(() -> new IllegalStateException("Unrecognized properties type id '" + id + "'"));
+	}
 
 }
