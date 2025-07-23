@@ -73,12 +73,6 @@ public class ApplicationProperties {
 		}
 	}
 
-	void writeToYaml(PrintWriter writer) {
-		for (Map.Entry<String, Object> entry : this.properties.entrySet()) {
-			writer.printf("%s: %s%n", entry.getKey(), entry.getValue());
-		}
-	}
-
 	private void add(String key, Object value) {
 		Assert.state(!this.properties.containsKey(key), () -> "Property '%s' already exists".formatted(key));
 		this.properties.put(key, value);
