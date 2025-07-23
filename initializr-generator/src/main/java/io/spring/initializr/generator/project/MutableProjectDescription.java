@@ -61,7 +61,7 @@ public class MutableProjectDescription implements ProjectDescription {
 
 	private String baseDirectory;
 
-	private String propertyType = "Properties";
+	private String propertyType = "properties";
 
 	/**
 	 * Creates a new instance.

@@ -18,7 +18,6 @@ package io.spring.initializr.generator.spring.properties;
 
 import java.util.Arrays;
 import java.util.Locale;
-import java.util.stream.Stream;
 
 import org.springframework.util.Assert;
 
@@ -37,15 +36,12 @@ public enum ApplicationPropertiesType {
 	/**
 	 * YAML format.
 	 */
-	YAML(ID.YAML, "yml");
+	YAML(ID.YAML);
 
 	private final String id;
 
-	private final String[] aliases;
-
-	ApplicationPropertiesType(String id, String... aliases) {
+	ApplicationPropertiesType(String id) {
 		this.id = id;
-		this.aliases = aliases;
 	}
 
 	/**
@@ -57,8 +53,7 @@ public enum ApplicationPropertiesType {
 		Assert.notNull(id, "Id must not be null");
 		String lowerCaseId = id.toLowerCase(Locale.ROOT);
 		return Arrays.stream(values())
-			.filter((format) -> format.id.equals(lowerCaseId)
-					|| Stream.of(format.aliases).anyMatch((alias) -> alias.equals(lowerCaseId)))
+			.filter((format) -> format.id.equals(lowerCaseId))
 			.findFirst()
 			.orElseThrow(() -> new IllegalArgumentException("Unknown application properties format '" + id + "'"));
 	}

@@ -44,8 +44,8 @@ class ApplicationPropertiesProjectGenerationConfiguration {
 
 	@Bean
 	@ConditionalOnProperties(ApplicationPropertiesType.ID.YAML)
-	ApplicationPropertiesContributor applicationYamlPropertiesContributor(ApplicationProperties applicationProperties) {
-		return new ApplicationPropertiesContributor(applicationProperties);
+	ApplicationYamlPropertiesContributor applicationYamlPropertiesContributor(ApplicationProperties applicationProperties) {
+		return new ApplicationYamlPropertiesContributor(applicationProperties);
 	}
 
 }
