@@ -17,11 +17,10 @@
 package io.spring.initializr.generator.properties;
 
 /**
- * A factory for creating {@link PropertiesType}.
+ * Todo todo.
  *
- * @author Bondit Manager
+ * @author Todo todo
  */
-@FunctionalInterface
 public interface PropertiesTypeFactory {
 
 	/**

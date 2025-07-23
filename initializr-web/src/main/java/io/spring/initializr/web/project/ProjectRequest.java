@@ -19,6 +19,8 @@ package io.spring.initializr.web.project;
 import java.util.ArrayList;
 import java.util.List;
 
+import io.spring.initializr.generator.properties.properties.PropertiesPropertiesType;
+
 import org.springframework.util.StringUtils;
 
 /**
@@ -53,6 +55,9 @@ public class ProjectRequest {
 	private String packageName;
 
 	private String javaVersion;
+
+	// TODO: 외부 요청 없어도 기본값
+	private String propertiesType = new PropertiesPropertiesType().id();
 
 	// The base directory to create in the archive - no baseDir by default
 	private String baseDir;
@@ -173,6 +178,14 @@ public class ProjectRequest {
 
 	public void setBaseDir(String baseDir) {
 		this.baseDir = baseDir;
+	}
+
+	public String getPropertiesType() {
+		return this.propertiesType;
+	}
+
+	public void setPropertiesType(String propertiesType) {
+		this.propertiesType = propertiesType;
 	}
 
 }

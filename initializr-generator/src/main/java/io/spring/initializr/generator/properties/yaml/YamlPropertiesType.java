@@ -18,7 +18,7 @@ package io.spring.initializr.generator.properties.yaml;
 
 import io.spring.initializr.generator.properties.PropertiesType;
 
-public class YamlPropertiesType implements PropertiesType {
+public final class YamlPropertiesType implements PropertiesType {
 
 	/**
 	 * YAML {@link PropertiesType} identifier.

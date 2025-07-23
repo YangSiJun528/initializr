@@ -26,6 +26,7 @@ import io.spring.initializr.generator.language.Language;
 import io.spring.initializr.generator.packaging.Packaging;
 import io.spring.initializr.generator.project.MutableProjectDescription;
 import io.spring.initializr.generator.project.ProjectDescription;
+import io.spring.initializr.generator.properties.PropertiesType;
 import io.spring.initializr.generator.version.Version;
 import io.spring.initializr.metadata.DefaultMetadataElement;
 import io.spring.initializr.metadata.Dependency;
@@ -96,6 +97,7 @@ public class DefaultProjectRequestToDescriptionConverter
 		description.setPackaging(Packaging.forId(request.getPackaging()));
 		description.setPlatformVersion(platformVersion);
 		description.setVersion(request.getVersion());
+		description.setPropertiesType(PropertiesType.forId(request.getPropertiesType()));
 		resolvedDependencies.forEach((dependency) -> description.addDependency(dependency.getId(),
 				MetadataBuildItemMapper.toDependency(dependency)));
 	}

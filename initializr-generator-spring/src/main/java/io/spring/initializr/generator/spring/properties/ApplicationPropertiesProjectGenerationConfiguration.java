@@ -16,7 +16,10 @@
 
 package io.spring.initializr.generator.spring.properties;
 
+import io.spring.initializr.generator.condition.ConditionalOnProperties;
 import io.spring.initializr.generator.project.ProjectGenerationConfiguration;
+import io.spring.initializr.generator.properties.properties.PropertiesPropertiesType;
+import io.spring.initializr.generator.properties.yaml.YamlPropertiesType;
 
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Bean;
@@ -37,8 +40,16 @@ class ApplicationPropertiesProjectGenerationConfiguration {
 	}
 
 	@Bean
+	@ConditionalOnProperties(PropertiesPropertiesType.ID)
 	ApplicationPropertiesContributor applicationPropertiesContributor(ApplicationProperties applicationProperties) {
 		return new ApplicationPropertiesContributor(applicationProperties);
+	}
+
+	@Bean
+	@ConditionalOnProperties(YamlPropertiesType.ID)
+	ApplicationYamlPropertiesContributor applicationYamlPropertiesContributor(
+			ApplicationProperties applicationProperties) {
+		return new ApplicationYamlPropertiesContributor(applicationProperties);
 	}
 
 }

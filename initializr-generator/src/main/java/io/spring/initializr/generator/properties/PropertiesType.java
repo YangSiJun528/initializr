@@ -21,9 +21,9 @@ import java.util.Objects;
 import org.springframework.core.io.support.SpringFactoriesLoader;
 
 /**
- * Application properties type, such as a properties file or a yaml file.
+ * Todo todo.
  *
- * @author Bondit Manager
+ * @author Todo todo
  */
 public interface PropertiesType {
 

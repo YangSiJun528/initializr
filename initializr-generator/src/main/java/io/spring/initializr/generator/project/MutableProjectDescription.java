@@ -63,13 +63,14 @@ public class MutableProjectDescription implements ProjectDescription {
 
 	private String baseDirectory;
 
-	// TODO: 일단 호환성 지켜야해서
-	private PropertiesType propertiesType = new PropertiesPropertiesType();
+	private PropertiesType propertiesType;
 
 	/**
 	 * Creates a new instance.
 	 */
 	public MutableProjectDescription() {
+		// TODO: 일단 호환성 지켜야해서
+		this.propertiesType = new PropertiesPropertiesType();
 	}
 
 	/**
@@ -90,6 +91,7 @@ public class MutableProjectDescription implements ProjectDescription {
 		this.applicationName = source.getApplicationName();
 		this.packageName = source.getPackageName();
 		this.baseDirectory = source.getBaseDirectory();
+		this.propertiesType = source.getPropertiesType();
 	}
 
 	@Override
