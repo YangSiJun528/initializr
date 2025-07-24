@@ -90,13 +90,14 @@ public class ApplicationProperties {
 		this.properties.put(key, value);
 	}
 
-	//TODO: GPT가 생성한 코드, 다른 구현이나 스프링 내부의 다른 예시 보고 적절하게 수정하기
+	// TODO: GPT가 생성한 코드, 다른 구현이나 스프링 내부의 다른 예시 보고 적절하게 수정하기
 	@SuppressWarnings("unchecked")
 	private void insertNestedKey(Map<String, Object> map, String[] keys, int index, Object value) {
 		String key = keys[index];
 		if (index == keys.length - 1) {
 			map.put(key, value);
-		} else {
+		}
+		else {
 			map.computeIfAbsent(key, k -> new HashMap<String, Object>());
 			insertNestedKey((Map<String, Object>) map.get(key), keys, index + 1, value);
 		}
@@ -109,9 +110,11 @@ public class ApplicationProperties {
 			if (value instanceof Map<?, ?> nestedMap) {
 				writer.printf("%s%s:%n", indentStr, entry.getKey());
 				writeYamlRecursive((Map<String, Object>) nestedMap, writer, indent + 1);
-			} else {
+			}
+			else {
 				writer.printf("%s%s: %s%n", indentStr, entry.getKey(), value);
 			}
 		}
 	}
+
 }

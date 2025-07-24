@@ -52,6 +52,8 @@ public class ProjectRequestDocument {
 
 	private String packageName;
 
+	private String propertiesType;
+
 	private VersionInformation version;
 
 	private ClientInformation client;
@@ -130,6 +132,14 @@ public class ProjectRequestDocument {
 
 	public void setPackageName(String packageName) {
 		this.packageName = packageName;
+	}
+
+	public void setPropertiesType(String packaging) {
+		this.propertiesType = propertiesType;
+	}
+
+	public String getPropertiesType() {
+		return this.propertiesType;
 	}
 
 	public VersionInformation getVersion() {
@@ -333,6 +343,8 @@ public class ProjectRequestDocument {
 
 		private Boolean packaging;
 
+		private Boolean propertiesType;
+
 		private Boolean type;
 
 		private InvalidDependencyInformation dependencies;
@@ -365,6 +377,14 @@ public class ProjectRequestDocument {
 
 		public void setPackaging(Boolean packaging) {
 			this.packaging = packaging;
+		}
+
+		public Boolean getPropertiesType() {
+			return this.propertiesType;
+		}
+
+		public void setPropertiesType(Boolean propertiesType) {
+			this.propertiesType = propertiesType;
 		}
 
 		public Boolean getType() {

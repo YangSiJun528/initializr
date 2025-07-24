@@ -3,6 +3,7 @@ logging:
     org.springframework.core.env: warn
     org.springframework.jndi: warn
     io.spring.initializr: trace
+    sample.service: trace
 
 management:
   info:

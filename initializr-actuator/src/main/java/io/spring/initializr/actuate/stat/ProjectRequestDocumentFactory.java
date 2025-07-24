@@ -74,6 +74,13 @@ public class ProjectRequestDocumentFactory {
 			document.triggerError().setPackaging(true);
 		}
 
+		document.setPropertiesType(request.getPropertiesType());
+		if (StringUtils.hasText(request.getPropertiesType())
+			&& metadata.getPropertiesType().get(request.getPropertiesType()) == null) {
+			// 이게 뭐하는건지는 알겠는데 노가다라서 대충할꺼임. 나중에 진짜 작업할때는 제대로 하기
+			document.triggerError().setPropertiesType(true);
+		}
+
 		document.setType(request.getType());
 		document.setBuildSystem(determineBuildSystem(request));
 		if (StringUtils.hasText(request.getType()) && metadata.getTypes().get(request.getType()) == null) {

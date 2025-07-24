@@ -51,6 +51,9 @@ public class InitializrMetadata {
 	private final SingleSelectCapability languages = new SingleSelectCapability("language", "Language",
 			"programming language");
 
+	private final SingleSelectCapability propertiesType = new SingleSelectCapability("propertiesType", "Properties Type",
+			"properties File extension");
+
 	private final TextCapability name = new TextCapability("name", "Name", "project name (infer application name)");
 
 	private final TextCapability description = new TextCapability("description", "Description", "project description");
@@ -97,6 +100,10 @@ public class InitializrMetadata {
 
 	public SingleSelectCapability getLanguages() {
 		return this.languages;
+	}
+
+	public SingleSelectCapability getPropertiesType() {
+		return this.propertiesType;
 	}
 
 	public TextCapability getName() {
@@ -247,6 +254,7 @@ public class InitializrMetadata {
 		defaults.put("packaging", defaultId(this.packagings));
 		defaults.put("javaVersion", defaultId(this.javaVersions));
 		defaults.put("language", defaultId(this.languages));
+		defaults.put("propertiesType", defaultId(this.propertiesType));
 		defaults.put("groupId", this.groupId.getContent());
 		defaults.put("artifactId", this.artifactId.getContent());
 		defaults.put("version", this.version.getContent());

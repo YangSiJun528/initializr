@@ -88,15 +88,9 @@ class ApplicationPropertiesTests {
 		properties.add("spring.datasource.url", "jdbc:h2:mem:test");
 
 		String written = writeYaml(properties);
-		assertThat(written).isEqualToIgnoringNewLines("spring:\n" +
-                                                      "  application:\n" +
-                                                      "    name: test\n" +
-                                                      "  datasource:\n" +
-                                                      "    url: jdbc:h2:mem:test\n" +
-                                                      "server:\n" +
-                                                      "  port: 8080\n" +
-                                                      "management:\n" +
-                                                      "  enabled: true\n");
+		assertThat(written).isEqualToIgnoringNewLines("spring:\n" + "  application:\n" + "    name: test\n"
+				+ "  datasource:\n" + "    url: jdbc:h2:mem:test\n" + "server:\n" + "  port: 8080\n" + "management:\n"
+				+ "  enabled: true\n");
 	}
 
 	private String writeYaml(ApplicationProperties properties) {
