@@ -27,6 +27,7 @@ import io.spring.initializr.generator.language.java.JavaLanguage;
 import io.spring.initializr.generator.project.MutableProjectDescription;
 import io.spring.initializr.generator.project.ProjectGenerationConfiguration;
 import io.spring.initializr.generator.project.ProjectGenerator;
+import io.spring.initializr.generator.properties.yaml.YamlPropertiesType;
 import io.spring.initializr.generator.test.InitializrMetadataTestBuilder;
 import io.spring.initializr.generator.test.project.ProjectGeneratorTester;
 import io.spring.initializr.generator.test.project.ProjectStructure;
@@ -79,6 +80,24 @@ class ProjectGeneratorIntegrationTests {
 					"test/demo-app/src/main/resources/application.properties",
 					"test/demo-app/src/test/java/com/example/demo/DemoApplicationTests.java", "test/demo-app/HELP.md");
 	}
+
+	//TODO(ME): 수정
+	@Test
+	void yaml() {
+		MutableProjectDescription description = initProjectDescription();
+		description.setBuildSystem(new MavenBuildSystem());
+		description.setBaseDirectory("test/demo-app");
+		description.setPropertiesType(new YamlPropertiesType());
+		ProjectStructure project = this.projectTester.generate(description);
+		assertThat(project).filePaths()
+				.containsOnly("test/demo-app/.gitignore", "test/demo-app/.gitattributes", "test/demo-app/pom.xml",
+						"test/demo-app/mvnw", "test/demo-app/mvnw.cmd",
+						"test/demo-app/.mvn/wrapper/maven-wrapper.properties",
+						"test/demo-app/src/main/java/com/example/demo/DemoApplication.java",
+						"test/demo-app/src/main/resources/application.yaml",
+						"test/demo-app/src/test/java/com/example/demo/DemoApplicationTests.java", "test/demo-app/HELP.md");
+	}
+
 
 	@Test
 	void generatedMavenProjectBuilds(@TempDir Path mavenHome) throws Exception {

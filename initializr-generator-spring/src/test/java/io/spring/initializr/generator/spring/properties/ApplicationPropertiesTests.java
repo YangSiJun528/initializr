@@ -79,4 +79,32 @@ class ApplicationPropertiesTests {
 		return stringWriter.toString();
 	}
 
+	@Test
+	void yaml() {
+		ApplicationProperties properties = new ApplicationProperties();
+		properties.add("spring.application.name", "test");
+		properties.add("server.port", 8080);
+		properties.add("management.enabled", true);
+		properties.add("spring.datasource.url", "jdbc:h2:mem:test");
+
+		String written = writeYaml(properties);
+		assertThat(written).isEqualToIgnoringNewLines("spring:\n" +
+                                                      "  application:\n" +
+                                                      "    name: test\n" +
+                                                      "  datasource:\n" +
+                                                      "    url: jdbc:h2:mem:test\n" +
+                                                      "server:\n" +
+                                                      "  port: 8080\n" +
+                                                      "management:\n" +
+                                                      "  enabled: true\n");
+	}
+
+	private String writeYaml(ApplicationProperties properties) {
+		StringWriter stringWriter = new StringWriter();
+		try (PrintWriter writer = new PrintWriter(stringWriter)) {
+			properties.writeToYaml(writer);
+		}
+		return stringWriter.toString();
+	}
+
 }

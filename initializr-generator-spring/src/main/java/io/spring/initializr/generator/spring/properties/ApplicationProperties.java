@@ -74,10 +74,15 @@ public class ApplicationProperties {
 	}
 
 	void writeToYaml(PrintWriter writer) {
+		Map<String, Object> nested = new HashMap<>();
+
+		// 1. 점(.)을 기준으로 키 분해하여 중첩 맵 구성
 		for (Map.Entry<String, Object> entry : this.properties.entrySet()) {
-			// 테스트용 임시
-			writer.printf("%s==%s%n", entry.getKey(), entry.getValue());
+			insertNestedKey(nested, entry.getKey().split("\\."), 0, entry.getValue());
 		}
+
+		// 2. 재귀적으로 출력
+		writeYamlRecursive(nested, writer, 0);
 	}
 
 	private void add(String key, Object value) {
@@ -85,4 +90,28 @@ public class ApplicationProperties {
 		this.properties.put(key, value);
 	}
 
+	//TODO: GPT가 생성한 코드, 다른 구현이나 스프링 내부의 다른 예시 보고 적절하게 수정하기
+	@SuppressWarnings("unchecked")
+	private void insertNestedKey(Map<String, Object> map, String[] keys, int index, Object value) {
+		String key = keys[index];
+		if (index == keys.length - 1) {
+			map.put(key, value);
+		} else {
+			map.computeIfAbsent(key, k -> new HashMap<String, Object>());
+			insertNestedKey((Map<String, Object>) map.get(key), keys, index + 1, value);
+		}
+	}
+
+	private void writeYamlRecursive(Map<String, Object> map, PrintWriter writer, int indent) {
+		String indentStr = "  ".repeat(indent);
+		for (Map.Entry<String, Object> entry : map.entrySet()) {
+			Object value = entry.getValue();
+			if (value instanceof Map<?, ?> nestedMap) {
+				writer.printf("%s%s:%n", indentStr, entry.getKey());
+				writeYamlRecursive((Map<String, Object>) nestedMap, writer, indent + 1);
+			} else {
+				writer.printf("%s%s: %s%n", indentStr, entry.getKey(), value);
+			}
+		}
+	}
 }
