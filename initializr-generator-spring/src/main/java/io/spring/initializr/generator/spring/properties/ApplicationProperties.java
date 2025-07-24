@@ -29,6 +29,8 @@ import org.springframework.util.Assert;
  */
 public class ApplicationProperties {
 
+	private static final String YAML_SPACE = "  ";
+
 	private final Map<String, Object> properties = new HashMap<>();
 
 	/**
@@ -75,14 +77,29 @@ public class ApplicationProperties {
 
 	void writeToYaml(PrintWriter writer) {
 		Map<String, Object> nested = new HashMap<>();
+		flattenToNestedMap(this.properties, nested);
+		writeYaml(nested, writer);
+	}
 
-		// 1. 점(.)을 기준으로 키 분해하여 중첩 맵 구성
-		for (Map.Entry<String, Object> entry : this.properties.entrySet()) {
-			insertNestedKey(nested, entry.getKey().split("\\."), 0, entry.getValue());
+	private void flattenToNestedMap(Map<String, Object> flatMap, Map<String, Object> nestedMap) {
+		for (Map.Entry<String, Object> entry : flatMap.entrySet()) {
+			String[] path = parseKeyPath(entry.getKey());
+			insertValueAtPath(nestedMap, path, entry.getValue());
 		}
+	}
 
-		// 2. 재귀적으로 출력
-		writeYamlRecursive(nested, writer, 0);
+	private String[] parseKeyPath(String key) {
+		return key.split("\\.");
+	}
+
+	@SuppressWarnings("unchecked")
+	private void insertValueAtPath(Map<String, Object> map, String[] path, Object value) {
+		Map<String, Object> current = map;
+		for (int i = 0; i < path.length - 1; i++) {
+			String segment = path[i];
+			current = (Map<String, Object>) current.computeIfAbsent(segment, k -> new HashMap<>());
+		}
+		current.put(path[path.length - 1], value);
 	}
 
 	private void add(String key, Object value) {
@@ -90,31 +107,31 @@ public class ApplicationProperties {
 		this.properties.put(key, value);
 	}
 
-	// TODO: GPT가 생성한 코드, 다른 구현이나 스프링 내부의 다른 예시 보고 적절하게 수정하기
-	@SuppressWarnings("unchecked")
-	private void insertNestedKey(Map<String, Object> map, String[] keys, int index, Object value) {
-		String key = keys[index];
-		if (index == keys.length - 1) {
-			map.put(key, value);
-		}
-		else {
-			map.computeIfAbsent(key, k -> new HashMap<String, Object>());
-			insertNestedKey((Map<String, Object>) map.get(key), keys, index + 1, value);
-		}
+	private void writeYaml(Map<String, Object> map, PrintWriter writer) {
+		writeYamlRecursive(map, writer, 0);
 	}
 
 	private void writeYamlRecursive(Map<String, Object> map, PrintWriter writer, int indent) {
-		String indentStr = "  ".repeat(indent);
 		for (Map.Entry<String, Object> entry : map.entrySet()) {
-			Object value = entry.getValue();
-			if (value instanceof Map<?, ?> nestedMap) {
-				writer.printf("%s%s:%n", indentStr, entry.getKey());
-				writeYamlRecursive((Map<String, Object>) nestedMap, writer, indent + 1);
-			}
-			else {
-				writer.printf("%s%s: %s%n", indentStr, entry.getKey(), value);
-			}
+			writeEntry(entry, writer, indent);
 		}
 	}
 
+	@SuppressWarnings("unchecked")
+	private void writeEntry(Map.Entry<String, Object> entry, PrintWriter writer, int indent) {
+		String indentStr = getIndent(indent);
+		Object value = entry.getValue();
+
+		if (value instanceof Map<?, ?> nestedMap) {
+			writer.printf("%s%s:%n", indentStr, entry.getKey());
+			writeYamlRecursive((Map<String, Object>) nestedMap, writer, indent + 1);
+		}
+		else {
+			writer.printf("%s%s: %s%n", indentStr, entry.getKey(), value);
+		}
+	}
+
+	private String getIndent(int level) {
+		return YAML_SPACE.repeat(level);
+	}
 }
