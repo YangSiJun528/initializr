@@ -2,7 +2,7 @@ logging:
   level:
     org.springframework.core.env: warn
     org.springframework.jndi: warn
-    io.spring.initializr.web: debug
+    io.spring.initializr: trace
 
 management:
   info:

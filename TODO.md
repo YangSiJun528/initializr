@@ -46,6 +46,14 @@ API 호출
 curl -o yaml-test.zip "http://localhost:8080/starter.zip?type=gradle-project&language=java&bootVersion=3.5.3&baseDir=demo&groupId=com.example&artifactId=demo&name=demo&description=Demo%20project%20for%20Spring%20Boot&packageName=com.example.demo&packaging=jar&javaVersion=17&dependencies=web,data-jpa,h2"
 ```
 
+근데 지금 뭔가 버그가 있다. .properties 파일에 아무것도 안 써짐.
+
+아닌가? 원래 기본 동작이 이런건가? 
+
+start.io 는 아니였던거 같은데 흠...
+
+일단 지금 작업 롤백하고 다른 브랜치에서 실행해봐야 할 듯?
+
 ## 5. YAML 기능 리팩토링
 
 일단 GPT가 만들어주긴 했는데, YAML 명세 읽어보고 올바르게 구현해야 함.
