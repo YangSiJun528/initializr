@@ -76,6 +76,12 @@ https://github.com/spring-io/start.spring.io/blob/main/start-site/src/main/java/
 
 지금 있는 문제는 propertiesType 값 적용이 안된다는거, 어디 작업 빠진 부분이 있나본데, 그거 확인하기
 
+아마 `ProjectRequestDocumentFactory`나 `ProjectRequestDocument` 작업해서 된거 같음.
+
+sample 모듈에 테스트하겠다고 이거저거 추가했는데, 그냥 IDE에서 실행하고 디버깅 포인트 걸어서 확인하는게 나을 듯?
+
+일단 기능 자체는 다 된다는 걸 확인했으니, 리팩토링 조금 하고, main에 PR 올려서 해야 할 작업 정리하고, 브랜치 새로 파서 진행하면 될 듯?
+
 ## 5. YAML 기능 리팩토링
 
 일단 GPT가 만들어주긴 했는데, YAML 명세 읽어보고 올바르게 구현해야 함.
@@ -83,3 +89,12 @@ https://github.com/spring-io/start.spring.io/blob/main/start-site/src/main/java/
 따옴표 특수 처리나 EOL 공백 필요한지, 등등...
 
 다행인건 properties에 list가 추가되거나 하는 건 없어서 
+
+
+## 6. PR 올려서 필요한 작업과 적절한 순서 정리
+
+PR 열어서 diff 보고
+
+코드 수정 필요한 부분, 작업 진행 순서, 필요한 테스트 등 정리
+
+## 7. 새 브랜치에서 작업 후 PR 올리기
