@@ -75,6 +75,8 @@ class ProjectMetadataControllerCustomDefaultsIntegrationTests extends AbstractFu
 
 	@Test
 	void validateJson() throws JSONException {
+		// TODO: 이거 실패했은 아마 InitializrMetadata에서 메타데이터나 그런거 앍는 부분인거 같은데, jar/war 처럼 내용
+		// 추가해야 함.
 		ResponseEntity<String> response = execute("/metadata/config", String.class, null, "application/json");
 		validateContentType(response, MediaType.APPLICATION_JSON);
 		JSONObject json = new JSONObject(response.getBody());

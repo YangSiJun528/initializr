@@ -320,6 +320,13 @@
     "title": "Language",
     "type": "SINGLE_SELECT"
   },
+  "propertiesType": {
+    "id": "propertiesType",
+    "type": "SINGLE_SELECT",
+    "title": "Properties Type",
+    "description": "properties File extension",
+    "content": []
+  },
   "name": {
     "content": "demo",
     "description": "project name (infer application name)",

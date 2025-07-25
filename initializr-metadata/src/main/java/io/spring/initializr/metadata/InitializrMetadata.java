@@ -51,8 +51,8 @@ public class InitializrMetadata {
 	private final SingleSelectCapability languages = new SingleSelectCapability("language", "Language",
 			"programming language");
 
-	private final SingleSelectCapability propertiesType = new SingleSelectCapability("propertiesType", "Properties Type",
-			"properties File extension");
+	private final SingleSelectCapability propertiesType = new SingleSelectCapability("propertiesType",
+			"Properties Type", "properties File extension");
 
 	private final TextCapability name = new TextCapability("name", "Name", "project name (infer application name)");
 

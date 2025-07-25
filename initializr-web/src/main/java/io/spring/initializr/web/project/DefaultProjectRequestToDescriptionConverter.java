@@ -27,6 +27,7 @@ import io.spring.initializr.generator.packaging.Packaging;
 import io.spring.initializr.generator.project.MutableProjectDescription;
 import io.spring.initializr.generator.project.ProjectDescription;
 import io.spring.initializr.generator.properties.PropertiesType;
+import io.spring.initializr.generator.properties.properties.PropertiesPropertiesType;
 import io.spring.initializr.generator.version.Version;
 import io.spring.initializr.metadata.DefaultMetadataElement;
 import io.spring.initializr.metadata.Dependency;
@@ -97,7 +98,12 @@ public class DefaultProjectRequestToDescriptionConverter
 		description.setPackaging(Packaging.forId(request.getPackaging()));
 		description.setPlatformVersion(platformVersion);
 		description.setVersion(request.getVersion());
-		description.setPropertiesType(PropertiesType.forId(request.getPropertiesType()));
+		// TODO(ME): 이거 없으면 기본값 넣게 하는게 있을거 같은데, 어디서 하는지 모르겠음.
+		var propertiesType = request.getPropertiesType();
+		if (propertiesType == null) {
+			propertiesType = new PropertiesPropertiesType().id();
+		}
+		description.setPropertiesType(PropertiesType.forId(propertiesType));
 		resolvedDependencies.forEach((dependency) -> description.addDependency(dependency.getId(),
 				MetadataBuildItemMapper.toDependency(dependency)));
 	}

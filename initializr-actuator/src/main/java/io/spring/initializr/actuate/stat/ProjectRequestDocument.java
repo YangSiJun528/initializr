@@ -134,7 +134,7 @@ public class ProjectRequestDocument {
 		this.packageName = packageName;
 	}
 
-	public void setPropertiesType(String packaging) {
+	public void setPropertiesType(String propertiesType) {
 		this.propertiesType = propertiesType;
 	}
 

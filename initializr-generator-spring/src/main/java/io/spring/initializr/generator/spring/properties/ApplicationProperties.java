@@ -97,7 +97,7 @@ public class ApplicationProperties {
 		Map<String, Object> current = map;
 		for (int i = 0; i < path.length - 1; i++) {
 			String segment = path[i];
-			current = (Map<String, Object>) current.computeIfAbsent(segment, k -> new HashMap<>());
+			current = (Map<String, Object>) current.computeIfAbsent(segment, (k) -> new HashMap<>());
 		}
 		current.put(path[path.length - 1], value);
 	}
@@ -134,4 +134,5 @@ public class ApplicationProperties {
 	private String getIndent(int level) {
 		return YAML_SPACE.repeat(level);
 	}
+
 }

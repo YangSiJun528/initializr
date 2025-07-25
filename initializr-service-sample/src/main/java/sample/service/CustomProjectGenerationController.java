@@ -22,14 +22,14 @@ import io.spring.initializr.metadata.InitializrMetadataProvider;
 import io.spring.initializr.web.controller.DefaultProjectGenerationController;
 import io.spring.initializr.web.project.ProjectGenerationInvoker;
 import io.spring.initializr.web.project.ProjectRequest;
-
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+
 import org.springframework.http.ResponseEntity;
 
 public class CustomProjectGenerationController extends DefaultProjectGenerationController {
 
-    private static final Log logger = LogFactory.getLog(CustomProjectGenerationController.class);
+	private static final Log logger = LogFactory.getLog(CustomProjectGenerationController.class);
 
 	public CustomProjectGenerationController(InitializrMetadataProvider metadataProvider,
 			ProjectGenerationInvoker<ProjectRequest> projectGenerationInvoker) {
@@ -38,7 +38,8 @@ public class CustomProjectGenerationController extends DefaultProjectGenerationC
 
 	@Override
 	public ResponseEntity<byte[]> springZip(ProjectRequest request) throws IOException {
-        logger.info("ProjectRequest: " + request.getPropertiesType());
+		// TODO(ME): 여기 디버깅 포인트
+		logger.info("ProjectRequest: " + request.toString());
 		return super.springZip(request);
 	}
 
