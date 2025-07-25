@@ -265,6 +265,10 @@ public class InitializrMetadata {
 	}
 
 	private static String defaultId(Defaultable<? extends DefaultMetadataElement> element) {
+		// TODO(ME): 여기 기본값이나 SingleSelectCapability의 content(선택 가능한 옵션)은 initializr를 사용하는
+		// 서비스의 application.yml에서 정의됨.
+		// 참고:
+		// https://github.com/spring-io/start.spring.io/blob/main/start-site/src/main/resources/application.yml
 		DefaultMetadataElement defaultValue = element.getDefault();
 		return (defaultValue != null) ? defaultValue.getId() : null;
 	}
