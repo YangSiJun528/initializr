@@ -121,12 +121,6 @@ public class GradleProjectGenerationConfiguration {
 	}
 
 	@Bean
-	@ConditionalOnBuildSystem(id = GradleBuildSystem.ID)
-	BuildCustomizer<GradleBuild> gradleSettingBuildCustomizer(ProjectDescription description) {
-		return new GradleSettingBuildCustomizer(description);
-	}
-
-	@Bean
 	@ConditionalOnBuildSystem(id = GradleBuildSystem.ID, dialect = GradleBuildSystem.DIALECT_GROOVY)
 	public GradleBuildProjectContributor gradleBuildProjectContributor(GroovyDslGradleBuildWriter buildWriter,
 			GradleBuild build) {
