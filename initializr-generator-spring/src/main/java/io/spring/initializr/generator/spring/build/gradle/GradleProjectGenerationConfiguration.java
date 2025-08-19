@@ -206,6 +206,7 @@ public class GradleProjectGenerationConfiguration {
 		@ConditionalOnPlatformVersion("2.2.0.M3")
 		BuildCustomizer<GradleBuild> testTaskContributor() {
 			return BuildCustomizer.ordered(TEST_ORDER,
+					//TODO: 일단 이거 하나랑
 					(build) -> build.tasks().customizeWithType("Test", (test) -> test.invoke("useJUnitPlatform")));
 		}
 

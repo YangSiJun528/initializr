@@ -91,13 +91,15 @@ class KotlinProjectGenerationDefaultContributorsConfiguration {
 	@Bean
 	@ConditionalOnBuildSystem(id = GradleBuildSystem.ID, dialect = GradleBuildSystem.DIALECT_KOTLIN)
 	KotlinGradleBuildCustomizer kotlinBuildCustomizerKotlinDsl(KotlinProjectSettings kotlinProjectSettings) {
+		//TODO: 여기 둘이 문제임  111
 		return new KotlinGradleBuildCustomizer(kotlinProjectSettings, '\"');
 	}
 
 	@Bean
 	@ConditionalOnBuildSystem(id = GradleBuildSystem.ID, dialect = GradleBuildSystem.DIALECT_GROOVY)
 	KotlinGradleBuildCustomizer kotlinBuildCustomizerGroovyDsl(KotlinProjectSettings kotlinProjectSettings) {
-		return new KotlinGradleBuildCustomizer(kotlinProjectSettings, '\'');
+		//TODO: 여기 둘이 문제임  222
+		return KotlinGradleBuildCustomizer.ordered(101, new KotlinGradleBuildCustomizer(kotlinProjectSettings, '\''));
 	}
 
 	/**
