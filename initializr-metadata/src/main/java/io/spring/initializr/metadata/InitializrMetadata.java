@@ -19,10 +19,16 @@ package io.spring.initializr.metadata;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
+import io.spring.initializr.generator.version.InvalidVersionException;
+import io.spring.initializr.generator.version.Version;
 import io.spring.initializr.generator.version.VersionParser;
 import io.spring.initializr.generator.version.VersionProperty;
 import org.jspecify.annotations.Nullable;
+
+import org.springframework.util.Assert;
+import org.springframework.util.StringUtils;
 
 /**
  * Meta-data used to generate a project.
@@ -38,7 +44,7 @@ public class InitializrMetadata {
 
 	private final TypeCapability types = new TypeCapability();
 
-	private final VersionCapability bootVersions = new VersionCapability("bootVersion", "Spring Boot Version",
+	private final SingleSelectCapability bootVersions = new SingleSelectCapability("bootVersion", "Spring Boot Version",
 			"spring boot version");
 
 	private final SingleSelectCapability packagings = new SingleSelectCapability("packaging", "Packaging",
@@ -85,7 +91,7 @@ public class InitializrMetadata {
 		return this.types;
 	}
 
-	public VersionCapability getBootVersions() {
+	public SingleSelectCapability getBootVersions() {
 		return this.bootVersions;
 	}
 
@@ -204,13 +210,63 @@ public class InitializrMetadata {
 
 	/**
 	 * Update the available Spring Boot versions with the specified capabilities.
+	 * <p>
+	 * Every version is parsed so that the compatibility ranges can be updated, and a
+	 * version that cannot be parsed is therefore rejected. Contrary to
+	 * {@link #resolveBootVersion(String)}, this fails fast: a compatibility range that
+	 * uses a wildcard would otherwise be silently resolved against an incomplete list of
+	 * versions.
 	 * @param versionsMetadata the Spring Boot boot versions metadata to use
+	 * @throws InvalidVersionException if a version cannot be parsed
 	 */
 	public void updateSpringBootVersions(List<DefaultMetadataElement> versionsMetadata) {
 		this.bootVersions.setContent(versionsMetadata);
-		VersionParser parser = this.bootVersions.getVersionParser();
+		List<Version> bootVersions = this.bootVersions.getContent().stream().map((it) -> {
+			String id = it.getId();
+			Assert.state(id != null, "'id' must not be null");
+			return Version.parse(id);
+		}).toList();
+		VersionParser parser = new VersionParser(bootVersions);
 		this.dependencies.updateCompatibilityRange(parser);
 		this.configuration.getEnv().updateCompatibilityRange(parser);
+	}
+
+	/**
+	 * Resolve the specified platform version against the available
+	 * {@link #getBootVersions() platform versions}. The minor and patch numbers can be
+	 * omitted or specified as {@code x}, in which case the latest matching general
+	 * availability version is returned, for instance {@code 4}, {@code 4.x.x} or
+	 * {@code 4.0.x}. A {@code x} in any other position, such as {@code 4.x.3} or
+	 * {@code 4.0.x-M1}, cannot be resolved. Any other value is parsed as is.
+	 * <p>
+	 * Contrary to {@link #updateSpringBootVersions(List)}, an available version that
+	 * cannot be parsed is ignored rather than rejected, as this runs for every request:
+	 * one such version in the metadata should not fail them all.
+	 * @param text the platform version to resolve
+	 * @return the resolved platform version or {@code null} if the version is invalid, if
+	 * it uses a wildcard that cannot be resolved or if no available version matches
+	 * @see VersionParser#resolveLatest(String)
+	 */
+	public @Nullable Version resolveBootVersion(String text) {
+		return createVersionParser().resolveLatest(text);
+	}
+
+	/**
+	 * Create a {@link VersionParser} for the currently available
+	 * {@link #getBootVersions() platform versions}, ignoring any version that cannot be
+	 * parsed. The parser is not cached as the available versions can be updated at any
+	 * time, see {@link #updateSpringBootVersions(List)}.
+	 * @return a parser for the available platform versions
+	 */
+	private VersionParser createVersionParser() {
+		List<Version> bootVersions = this.bootVersions.getContent()
+			.stream()
+			.map(DefaultMetadataElement::getId)
+			.filter(StringUtils::hasText)
+			.map(Version::safeParse)
+			.filter(Objects::nonNull)
+			.toList();
+		return new VersionParser(bootVersions);
 	}
 
 	/**

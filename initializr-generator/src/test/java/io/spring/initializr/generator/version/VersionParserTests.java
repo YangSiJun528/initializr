@@ -21,6 +21,8 @@ import java.util.Collections;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
@@ -72,11 +74,6 @@ class VersionParserTests {
 	@Test
 	void safeParseInvalidVersion() {
 		assertThat(this.parser.safeParse("foo")).isNull();
-	}
-
-	@Test
-	void safeParseLatestReturnsNullForInvalidVersion() {
-		assertThat(this.parser.safeParseLatest("foo")).isNull();
 	}
 
 	@Test
@@ -133,65 +130,97 @@ class VersionParserTests {
 	}
 
 	@Test
-	void parseLatestParsesExactVersion() {
-		assertThat(this.parser.parseLatest("1.2.0").toString()).isEqualTo("1.2.0");
+	void parseVersionWithLargestNumbersThatFitInAnInteger() {
+		assertThat(this.parser.parse("999999999.999999999.999999999.M999999999"))
+			.hasToString("999999999.999999999.999999999.M999999999");
+	}
+
+	@ParameterizedTest
+	@ValueSource(
+			strings = { "99999999999999.0.0", "1.99999999999999.0", "1.0.99999999999999", "1.0.0.M99999999999999" })
+	void parseVersionWithNumberThatDoesNotFitInAnIntegerIsInvalid(String text) {
+		assertThatExceptionOfType(InvalidVersionException.class).isThrownBy(() -> this.parser.parse(text));
 	}
 
 	@Test
-	void parseLatestResolvesPatchWildcardToLatestMatchingVersion() {
-		List<Version> currentVersions = Arrays.asList(this.parser.parse("1.3.8"), this.parser.parse("1.3.9"),
-				this.parser.parse("1.4.0"));
-		this.parser = new VersionParser(currentVersions);
-		assertThat(this.parser.parseLatest("1.3.x").toString()).isEqualTo("1.3.9");
+	void resolveLatestWithExactVersionParsesIt() {
+		this.parser = createParser("4.0.1", "4.1.2");
+		assertThat(this.parser.resolveLatest("4.0.1")).hasToString("4.0.1");
 	}
 
 	@Test
-	void parseLatestResolvesMinorAndPatchWildcardsToLatestMatchingVersion() {
-		List<Version> currentVersions = Arrays.asList(this.parser.parse("1.3.8"), this.parser.parse("1.4.0"));
-		this.parser = new VersionParser(currentVersions);
-		assertThat(this.parser.parseLatest("1.x.x").toString()).isEqualTo("1.4.0");
+	void resolveLatestWithExactVersionThatIsNotConfiguredParsesIt() {
+		this.parser = createParser("4.0.1", "4.1.2");
+		assertThat(this.parser.resolveLatest("3.5.0")).hasToString("3.5.0");
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = { "4", "4.x", "4.x.x" })
+	void resolveLatestWithMajorWildcardUsesLatestVersionOfThatMajor(String text) {
+		this.parser = createParser("3.5.9", "4.0.1", "4.1.2");
+		assertThat(this.parser.resolveLatest(text)).hasToString("4.1.2");
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = { "4.0", "4.0.x" })
+	void resolveLatestWithMinorWildcardUsesLatestVersionOfThatMinor(String text) {
+		this.parser = createParser("4.0.1", "4.0.2", "4.1.2");
+		assertThat(this.parser.resolveLatest(text)).hasToString("4.0.2");
 	}
 
 	@Test
-	void parseLatestResolvesPatchWildcardWithQualifier() {
-		List<Version> currentVersions = Arrays.asList(this.parser.parse("1.3.8.GA2"), this.parser.parse("1.3.9.GA2"),
-				this.parser.parse("1.4.0.GA2"));
-		this.parser = new VersionParser(currentVersions);
-		assertThat(this.parser.parseLatest("1.3.x.GA2").toString()).isEqualTo("1.3.9.GA2");
+	void resolveLatestWithWildcardIgnoresPreReleaseVersions() {
+		this.parser = createParser("4.0.1", "4.1.0-M2", "4.1.0-SNAPSHOT");
+		assertThat(this.parser.resolveLatest("4.x.x")).hasToString("4.0.1");
 	}
 
 	@Test
-	void parseLatestResolvesUnqualifiedWildcardVersion() {
-		List<Version> currentVersions = Arrays.asList(this.parser.parse("3.0.1"), this.parser.parse("3.0.2-SNAPSHOT"),
-				this.parser.parse("3.0.0-M1"));
-		this.parser = new VersionParser(currentVersions);
-		assertThat(this.parser.parseLatest("3.x.x").toString()).isEqualTo("3.0.1");
+	void resolveLatestWithWildcardConsidersReleaseQualifier() {
+		this.parser = createParser("1.5.21.RELEASE", "1.5.22.RELEASE");
+		assertThat(this.parser.resolveLatest("1.x.x")).hasToString("1.5.22.RELEASE");
 	}
 
 	@Test
-	void parseLatestRejectsWildcardMinorWithSpecificPatch() {
-		assertThatExceptionOfType(InvalidVersionException.class).isThrownBy(() -> this.parser.parseLatest("5.x.3"))
-			.withMessage("Could not determine latest version based on '5.x.3': wildcard minor requires wildcard patch");
+	void resolveLatestWithWildcardComparesPatchNumerically() {
+		this.parser = createParser("4.0.2", "4.0.10");
+		assertThat(this.parser.resolveLatest("4.0.x")).hasToString("4.0.10");
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = { "5.x.x", "4.2.x" })
+	void resolveLatestWithWildcardWhenNoVersionMatchesReturnsNull(String text) {
+		this.parser = createParser("4.0.1", "4.1.2");
+		assertThat(this.parser.resolveLatest(text)).isNull();
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = { "4.x.3", "4.0.x-M1", "4.x.x-SNAPSHOT", "4.x.3.RELEASE" })
+	void resolveLatestWithWildcardThatCannotBeResolvedReturnsNull(String text) {
+		this.parser = createParser("4.0.1", "4.0.2-M1");
+		assertThat(this.parser.resolveLatest(text)).isNull();
 	}
 
 	@Test
-	void parseLatestThrowsExceptionWhenNoVersionMatches() {
-		List<Version> currentVersions = Arrays.asList(this.parser.parse("1.3.8"), this.parser.parse("1.4.0"));
-		this.parser = new VersionParser(currentVersions);
-		assertThatExceptionOfType(InvalidVersionException.class).isThrownBy(() -> this.parser.parseLatest("2.x.x"))
-			.withMessage("Could not determine latest version based on '2.x.x'");
+	void resolveLatestWithWildcardAndSpaces() {
+		this.parser = createParser("4.0.1", "4.0.2");
+		assertThat(this.parser.resolveLatest("   4.0.x  ")).hasToString("4.0.2");
 	}
 
-	@Test
-	void safeParseLatestReturnsNullWhenNoVersionMatches() {
-		List<Version> currentVersions = Arrays.asList(this.parser.parse("1.3.8"), this.parser.parse("1.4.0"));
-		this.parser = new VersionParser(currentVersions);
-		assertThat(this.parser.safeParseLatest("2.x.x")).isNull();
+	@ParameterizedTest
+	@ValueSource(strings = { "", "   ", "nope", "4.", "4.0.0.", "99999999999999", "4.99999999999999",
+			"99999999999999.0.0", "4.0.0.M99999999999999" })
+	void resolveLatestWithInvalidVersionReturnsNull(String text) {
+		this.parser = createParser("4.0.1");
+		assertThat(this.parser.resolveLatest(text)).isNull();
 	}
 
 	@Test
 	void invalidRange() {
 		assertThatExceptionOfType(InvalidVersionException.class).isThrownBy(() -> this.parser.parseRange("foo-bar"));
+	}
+
+	private VersionParser createParser(String... versions) {
+		return new VersionParser(Arrays.stream(versions).map(Version::parse).toList());
 	}
 
 }

@@ -81,8 +81,8 @@ public class DefaultProjectRequestToDescriptionConverter
 	 * @param metadata the metadata instance to use to apply defaults if necessary
 	 */
 	public void convert(ProjectRequest request, MutableProjectDescription description, InitializrMetadata metadata) {
-		validate(request, metadata);
-		Version platformVersion = getPlatformVersion(request, metadata);
+		Version requestedVersion = validate(request, metadata);
+		Version platformVersion = this.platformVersionTransformer.transform(requestedVersion, metadata);
 		List<Dependency> resolvedDependencies = getResolvedDependencies(request, platformVersion, metadata);
 		validateDependencyRange(platformVersion, resolvedDependencies);
 
@@ -118,14 +118,15 @@ public class DefaultProjectRequestToDescriptionConverter
 				: value;
 	}
 
-	private void validate(ProjectRequest request, InitializrMetadata metadata) {
+	private Version validate(ProjectRequest request, InitializrMetadata metadata) {
 		validateBaseDir(request);
-		validatePlatformVersion(request, metadata);
+		Version platformVersion = validatePlatformVersion(request, metadata);
 		validateType(request.getType(), metadata);
 		validateLanguage(request.getLanguage(), metadata);
 		validateConfigurationFileFormat(request.getConfigurationFileFormat(), metadata);
 		validatePackaging(request.getPackaging(), metadata);
 		validateDependencies(request, metadata);
+		return platformVersion;
 	}
 
 	private void validateBaseDir(ProjectRequest request) {
@@ -139,13 +140,22 @@ public class DefaultProjectRequestToDescriptionConverter
 		}
 	}
 
-	private void validatePlatformVersion(ProjectRequest request, InitializrMetadata metadata) {
-		Version platformVersion = metadata.getBootVersions().safeParseVersion(request.getBootVersion());
+	private Version validatePlatformVersion(ProjectRequest request, InitializrMetadata metadata) {
+		String bootVersion = request.getBootVersion();
+		if (bootVersion == null) {
+			return getDefaultPlatformVersion(metadata);
+		}
+		Version platformVersion = metadata.resolveBootVersion(bootVersion);
+		if (platformVersion == null) {
+			throw new InvalidProjectRequestException(
+					"Invalid Spring Boot version '" + bootVersion + "' check project metadata");
+		}
 		Platform platform = metadata.getConfiguration().getEnv().getPlatform();
-		if (platformVersion != null && !platform.isCompatibleVersion(platformVersion)) {
+		if (!platform.isCompatibleVersion(platformVersion)) {
 			throw new InvalidProjectRequestException("Invalid Spring Boot version '" + platformVersion
 					+ "', Spring Boot compatibility range is " + platform.determineCompatibilityRangeRequirement());
 		}
+		return platformVersion;
 	}
 
 	private void validateType(@Nullable String type, InitializrMetadata metadata) {
@@ -222,19 +232,12 @@ public class DefaultProjectRequestToDescriptionConverter
 		return BuildSystem.forIdAndDialect(id, dialect);
 	}
 
-	private Version getPlatformVersion(ProjectRequest request, InitializrMetadata metadata) {
-		String versionText = (request.getBootVersion() != null) ? request.getBootVersion()
-				: getDefaultBootVersion(metadata);
-		Version version = metadata.getBootVersions().parseVersion(versionText);
-		return this.platformVersionTransformer.transform(version, metadata);
-	}
-
-	private String getDefaultBootVersion(InitializrMetadata metadata) {
+	private Version getDefaultPlatformVersion(InitializrMetadata metadata) {
 		DefaultMetadataElement element = metadata.getBootVersions().getDefault();
 		Assert.state(element != null, "'element' must not be null");
 		String id = element.getId();
 		Assert.state(id != null, "'id' must not be null");
-		return id;
+		return Version.parse(id);
 	}
 
 	private List<Dependency> getResolvedDependencies(ProjectRequest request, Version platformVersion,

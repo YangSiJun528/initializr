@@ -21,13 +21,14 @@ import java.util.Collections;
 import io.spring.initializr.generator.buildsystem.gradle.GradleBuildSystem;
 import io.spring.initializr.generator.project.ProjectDescription;
 import io.spring.initializr.generator.test.InitializrMetadataTestBuilder;
-import io.spring.initializr.generator.version.InvalidVersionException;
 import io.spring.initializr.generator.version.Version;
 import io.spring.initializr.generator.version.VersionRange;
 import io.spring.initializr.metadata.Dependency;
 import io.spring.initializr.metadata.InitializrMetadata;
 import io.spring.initializr.metadata.Type;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
@@ -204,13 +205,71 @@ class DefaultProjectRequestToDescriptionConverterTests {
 					"Invalid Spring Boot version '1.5.9.RELEASE', Spring Boot compatibility range is >=2.0.0.RELEASE and <2.3.0.M1");
 	}
 
+	@ParameterizedTest
+	@ValueSource(strings = { "not-a-version", "", "99999999999999", "2.99999999999999" })
+	void convertWhenSpringBootVersionIsNotAVersionShouldThrowException(String bootVersion) {
+		ProjectRequest request = createProjectRequest();
+		request.setBootVersion(bootVersion);
+		assertThatExceptionOfType(InvalidProjectRequestException.class)
+			.isThrownBy(() -> this.converter.convert(request, this.metadata))
+			.withMessage("Invalid Spring Boot version '" + bootVersion + "' check project metadata");
+	}
+
+	@Test
+	void convertWhenSpringBootVersionIsNotSetShouldUseDefault() {
+		ProjectRequest request = createProjectRequest();
+		request.setBootVersion(null);
+		ProjectDescription description = this.converter.convert(request, this.metadata);
+		assertThat(description.getPlatformVersion()).isEqualTo(Version.parse("2.4.1"));
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = { "2", "2.x", "2.x.x", "2.4", "2.4.x" })
+	void convertShouldResolveWildcardSpringBootVersion(String bootVersion) {
+		ProjectRequest request = createProjectRequest();
+		request.setBootVersion(bootVersion);
+		ProjectDescription description = this.converter.convert(request, this.metadata);
+		assertThat(description.getPlatformVersion()).isEqualTo(Version.parse("2.4.1"));
+	}
+
+	@Test
+	void convertShouldResolveWildcardSpringBootVersionToVersionWithQualifier() {
+		ProjectRequest request = createProjectRequest();
+		request.setBootVersion("2.2.x");
+		ProjectDescription description = this.converter.convert(request, this.metadata);
+		assertThat(description.getPlatformVersion()).isEqualTo(Version.parse("2.2.17.RELEASE"));
+	}
+
 	@Test
 	void convertWhenWildcardSpringBootVersionDoesNotMatchShouldThrowException() {
 		ProjectRequest request = createProjectRequest();
 		request.setBootVersion("2.6.x");
-		assertThatExceptionOfType(InvalidVersionException.class)
+		assertThatExceptionOfType(InvalidProjectRequestException.class)
 			.isThrownBy(() -> this.converter.convert(request, this.metadata))
-			.withMessage("Could not determine latest version based on '2.6.x'");
+			.withMessage("Invalid Spring Boot version '2.6.x' check project metadata");
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = { "2.x.3", "2.4.x-M1" })
+	void convertWhenSpringBootVersionUsesUnsupportedWildcardShouldThrowException(String bootVersion) {
+		ProjectRequest request = createProjectRequest();
+		request.setBootVersion(bootVersion);
+		assertThatExceptionOfType(InvalidProjectRequestException.class)
+			.isThrownBy(() -> this.converter.convert(request, this.metadata))
+			.withMessage("Invalid Spring Boot version '" + bootVersion + "' check project metadata");
+	}
+
+	@Test
+	void convertWhenWildcardSpringBootVersionResolvesToIncompatibleVersionShouldThrowException() {
+		this.metadata = InitializrMetadataTestBuilder.withDefaults()
+			.setPlatformCompatibilityRange("[2.0.0.RELEASE,2.3.0.M1)")
+			.build();
+		ProjectRequest request = createProjectRequest();
+		request.setBootVersion("2.x.x");
+		assertThatExceptionOfType(InvalidProjectRequestException.class)
+			.isThrownBy(() -> this.converter.convert(request, this.metadata))
+			.withMessage(
+					"Invalid Spring Boot version '2.4.1', Spring Boot compatibility range is >=2.0.0.RELEASE and <2.3.0.M1");
 	}
 
 	@Test
@@ -323,14 +382,6 @@ class DefaultProjectRequestToDescriptionConverterTests {
 		request.setBootVersion("2.0.3");
 		ProjectDescription description = this.converter.convert(request, this.metadata);
 		assertThat(description.getPlatformVersion()).isEqualTo(Version.parse("2.0.3"));
-	}
-
-	@Test
-	void convertShouldSetLatestMatchingPlatformVersionFromWildcardBootVersion() {
-		ProjectRequest request = createProjectRequest();
-		request.setBootVersion("2.4.x");
-		ProjectDescription description = this.converter.convert(request, this.metadata);
-		assertThat(description.getPlatformVersion()).isEqualTo(Version.parse("2.4.1"));
 	}
 
 	@Test

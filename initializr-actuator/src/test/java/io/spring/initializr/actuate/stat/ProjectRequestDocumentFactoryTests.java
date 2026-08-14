@@ -197,6 +197,26 @@ class ProjectRequestDocumentFactoryTests {
 	}
 
 	@Test
+	void createDocumentWithWildcardPlatformVersionRecordsResolvedVersion() {
+		ProjectRequest request = createProjectRequest();
+		request.setBootVersion("2.4.x");
+		ProjectGeneratedEvent event = createProjectGeneratedEvent(request);
+		ProjectRequestDocument document = this.factory.createDocument(event);
+		ProjectRequestDocument.VersionInformation version = document.getVersion();
+		assertThat(version).isNotNull();
+		assertThat(version.getId()).isEqualTo("2.4.1");
+	}
+
+	@Test
+	void createDocumentWithWildcardPlatformVersionThatCannotBeResolved() {
+		ProjectRequest request = createProjectRequest();
+		request.setBootVersion("9.9.x");
+		ProjectGeneratedEvent event = createProjectGeneratedEvent(request);
+		ProjectRequestDocument document = this.factory.createDocument(event);
+		assertThat(document.getVersion()).isNull();
+	}
+
+	@Test
 	void createDocumentInvalidLanguage() {
 		ProjectRequest request = createProjectRequest();
 		request.setLanguage("c++");

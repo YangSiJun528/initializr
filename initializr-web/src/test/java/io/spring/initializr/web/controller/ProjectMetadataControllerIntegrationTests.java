@@ -22,6 +22,8 @@ import io.spring.initializr.web.mapper.InitializrMetadataVersion;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.skyscreamer.jsonassert.JSONCompareMode;
 
 import org.springframework.http.HttpHeaders;
@@ -31,6 +33,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.web.client.HttpClientErrorException;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
 /**
  * Integration tests for {@link ProjectMetadataController}.
@@ -92,10 +95,29 @@ class ProjectMetadataControllerIntegrationTests extends AbstractInitializrContro
 	}
 
 	@Test
-	void dependenciesWithWildcardBootVersion() {
+	void dependenciesWithWildcardPlatformVersion() {
 		ResponseEntity<String> response = execute("/dependencies?bootVersion=2.4.x", String.class, null,
 				"application/vnd.initializr.v2.1+json");
 		assertThat(response.getBody()).contains("\"bootVersion\":\"2.4.4\"");
+	}
+
+	@Test
+	void dependenciesWithMajorOnlyPlatformVersion() {
+		ResponseEntity<String> response = execute("/dependencies?bootVersion=2", String.class, null,
+				"application/vnd.initializr.v2.1+json");
+		assertThat(response.getBody()).contains("\"bootVersion\":\"2.4.4\"");
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = { "9.9.x", "2.x.3", "2.4.x-M1" })
+	void dependenciesWithPlatformVersionThatCannotBeResolved(String bootVersion) {
+		assertThatExceptionOfType(HttpClientErrorException.class)
+			.isThrownBy(() -> execute("/dependencies?bootVersion=" + bootVersion, String.class, null,
+					"application/vnd.initializr.v2.1+json"))
+			.satisfies((ex) -> {
+				assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+				assertThat(ex.getResponseBodyAsString()).contains(bootVersion);
+			});
 	}
 
 	@Test

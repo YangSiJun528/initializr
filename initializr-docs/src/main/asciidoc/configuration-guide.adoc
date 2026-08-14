@@ -907,6 +907,29 @@ $ http https://localhost:8080/starter.zip dependencies==web,devtools \
 NOTE: `HTTPie` reads the same hint as the browser so it will store a `demo.zip` file in
 the current directory, with the same differences discussed above.
 
+The `bootVersion` parameter also accepts an abbreviated form, where the minor and patch
+numbers are either omitted or specified as `x`. The service then selects the latest
+generally available version that matches, ignoring milestones and snapshots. `4` and
+`4.x.x` both resolve to the latest generally available `4.x` version, and `4.0` and `4.0.x`
+both resolve to the latest generally available `4.0` version:
+
+[source]
+----
+$ curl -G http://localhost:8080/starter.zip -d bootVersion=4.0.x -o my-project.zip
+----
+
+The same forms are supported by the `/dependencies` endpoint.
+
+Only the trailing numbers can be replaced by `x`, and an abbreviated form cannot be
+combined with a qualifier. Values such as `4.x.3`, `4.0.x-M1` or `4.x.x-SNAPSHOT` are
+therefore rejected. Any other value is used as is, so `4.0.2-M1` selects that exact
+version.
+
+The request is rejected with a `400` response if no available version matches the
+abbreviated form, or if the version it resolves to is outside the platform compatibility
+range that the service is configured with. In the latter case, the error message refers to
+the resolved version rather than the abbreviated form that was requested.
+
 
 
 [[configuration-howto]]

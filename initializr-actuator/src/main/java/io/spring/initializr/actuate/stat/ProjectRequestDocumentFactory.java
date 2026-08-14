@@ -55,7 +55,7 @@ public class ProjectRequestDocumentFactory {
 		document.setGroupId(request.getGroupId());
 		document.setArtifactId(request.getArtifactId());
 		document.setPackageName(request.getPackageName());
-		document.setVersion(determineVersionInformation(request));
+		document.setVersion(determineVersionInformation(request, metadata));
 		document.setClient(determineClientInformation(request));
 
 		document.setJavaVersion(request.getJavaVersion());
@@ -120,8 +120,13 @@ public class ProjectRequestDocumentFactory {
 		return null;
 	}
 
-	private @Nullable VersionInformation determineVersionInformation(ProjectRequest request) {
-		Version version = Version.safeParse(request.getBootVersion());
+	private @Nullable VersionInformation determineVersionInformation(ProjectRequest request,
+			InitializrMetadata metadata) {
+		String bootVersion = request.getBootVersion();
+		if (bootVersion == null) {
+			return null;
+		}
+		Version version = metadata.resolveBootVersion(bootVersion);
 		if (version != null && version.getMajor() != null) {
 			return new VersionInformation(version);
 		}
