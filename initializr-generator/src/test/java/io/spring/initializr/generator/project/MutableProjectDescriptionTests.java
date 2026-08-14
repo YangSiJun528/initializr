@@ -47,4 +47,21 @@ class MutableProjectDescriptionTests {
 		assertThat(description.getRequestedDependencies()).containsOnlyKeys("core");
 	}
 
+	@Test
+	void createCopyCopiesChanges() {
+		MutableProjectDescription description = new MutableProjectDescription();
+		description.getChanges().add(ProjectDescriptionField.JVM_VERSION, "test reason");
+		MutableProjectDescription copy = description.createCopy();
+		assertThat(copy.getChanges().getAll()).extracting(ProjectDescriptionChange::getReason)
+			.containsExactly("test reason");
+	}
+
+	@Test
+	void createCopyDoesNotShareChanges() {
+		MutableProjectDescription description = new MutableProjectDescription();
+		MutableProjectDescription copy = description.createCopy();
+		description.getChanges().add(ProjectDescriptionField.JVM_VERSION, "test reason");
+		assertThat(copy.getChanges().isEmpty()).isTrue();
+	}
+
 }

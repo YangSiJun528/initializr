@@ -90,6 +90,18 @@ class ProjectGeneratorTests {
 	}
 
 	@Test
+	void generateKeepChangesRecordedByProjectDescriptionCustomizer() {
+		ProjectGenerator generator = new ProjectGenerator((context) -> context
+			.registerBean(ProjectDescriptionCustomizer.class, () -> (description) -> description.getChanges()
+				.add(ProjectDescriptionField.JVM_VERSION, "test reason")));
+		MutableProjectDescription description = new MutableProjectDescription();
+		generator.generate(description, (context) -> context.getBean(ProjectDescription.class));
+		assertThat(description.getChanges().get(ProjectDescriptionField.JVM_VERSION)).isNotNull()
+			.extracting(ProjectDescriptionChange::getReason)
+			.isEqualTo("test reason");
+	}
+
+	@Test
 	void generateInvokeContextInitializerBeforeContextIsRefreshed() {
 		ProjectGenerator generator = new ProjectGenerator((context) -> {
 			assertThat(context.isActive()).isFalse();

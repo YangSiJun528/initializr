@@ -20,7 +20,10 @@ import io.spring.initializr.generator.buildsystem.gradle.GradleBuild;
 import io.spring.initializr.generator.buildsystem.gradle.GradleBuildSystem;
 import io.spring.initializr.generator.condition.ConditionalOnBuildSystem;
 import io.spring.initializr.generator.condition.ConditionalOnPackaging;
+import io.spring.initializr.generator.language.Language;
 import io.spring.initializr.generator.packaging.war.WarPackaging;
+import io.spring.initializr.generator.project.ProjectDescriptionCustomizer;
+import io.spring.initializr.generator.project.ProjectDescriptionField;
 import io.spring.initializr.generator.spring.build.BuildCustomizer;
 
 import org.springframework.context.annotation.Bean;
@@ -40,5 +43,30 @@ public class ProjectCustomizationExamples {
 		return (build) -> build.plugins().add("war");
 	}
 	// end::war-plugin-contributor[]
+
+	// tag::jvm-version-change-reason[]
+	@Bean
+	public ProjectDescriptionCustomizer jvmVersionProjectDescriptionCustomizer() {
+		return (description) -> {
+			Language language = description.getLanguage();
+			if (language == null || !isBelowJava17(language.jvmVersion())) {
+				return;
+			}
+			description.setLanguage(Language.forId(language.id(), "17"));
+			description.getChanges()
+				.add(ProjectDescriptionField.JVM_VERSION,
+						"The JVM level was changed to '17' as it is the oldest supported version.");
+		};
+	}
+
+	private boolean isBelowJava17(String jvmVersion) {
+		try {
+			return Integer.parseInt(jvmVersion) < 17;
+		}
+		catch (NumberFormatException ex) {
+			return false;
+		}
+	}
+	// end::jvm-version-change-reason[]
 
 }

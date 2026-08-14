@@ -128,6 +128,32 @@ beans and can be ordered using Spring's `Ordered` interface. A `ProjectDescripti
 bean is available for extensions that wish to know if an attribute of the original
 `ProjectDescription` was modified.
 
+A `ProjectDescriptionDiff` only reveals *that* an attribute changed, which leaves other
+extensions to guess *why*. To avoid such guesses, a `ProjectDescriptionCustomizer` can record
+the reason for a change it makes using the `ProjectDescriptionChanges` of the description, as
+shown below:
+
+[source,java,indent=0,subs="verbatim,quotes,attributes"]
+----
+include::{code-examples}/doc/generator/project/ProjectCustomizationExamples.java[tag=jvm-version-change-reason]
+----
+
+A reason is reported as-is, so it should be a self-contained sentence, and it must only be
+recorded if the attribute is actually changed. The default help document turns each recorded
+reason into a warning, that is a bullet point of the `Read Me First` section of `HELP.md`.
+As `HELP.md` is a Markdown document, a reason that is rendered by the default help document
+can use Markdown, typically to link to a page with more details.
+
+At most one reason is kept per attribute: if several customizers change the same attribute, only
+the reason of the last one is kept as it supersedes the previous ones. A reason should therefore
+describe the value that has been set and why, but not the value that has been replaced, as the
+latter may well be an intermediate value that no other component has seen.
+
+Each `MutableProjectDescription` has its own `ProjectDescriptionChanges`. Customizers are
+typically singletons of the parent application context and are therefore shared by concurrent
+project generations, so a customizer must always record against the description it is given and
+must never hold on to a `ProjectDescriptionChanges` instance.
+
 Once the description has been customized based on the available
 ``ProjectDescriptionCustomizer``s, the generator uses a `ProjectAssetGenerator` to
 generate the project assets. The `initializr-generator` module provides a default

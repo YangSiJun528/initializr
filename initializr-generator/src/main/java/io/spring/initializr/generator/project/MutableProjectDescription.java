@@ -49,6 +49,8 @@ public class MutableProjectDescription implements ProjectDescription {
 
 	private final Map<String, Dependency> requestedDependencies = new LinkedHashMap<>();
 
+	private final ProjectDescriptionChanges changes = new ProjectDescriptionChanges();
+
 	private @Nullable String groupId;
 
 	private @Nullable String artifactId;
@@ -82,6 +84,7 @@ public class MutableProjectDescription implements ProjectDescription {
 		this.language = source.getLanguage();
 		this.configurationFileFormat = source.getConfigurationFileFormat();
 		this.requestedDependencies.putAll(source.getRequestedDependencies());
+		this.changes.addAll(source.getChanges());
 		this.groupId = source.getGroupId();
 		this.artifactId = source.getArtifactId();
 		this.version = source.getVersion();
@@ -95,6 +98,15 @@ public class MutableProjectDescription implements ProjectDescription {
 	@Override
 	public MutableProjectDescription createCopy() {
 		return new MutableProjectDescription(this);
+	}
+
+	/**
+	 * Return the changes that have been applied to this description, so that a
+	 * {@link ProjectDescriptionCustomizer} can record the reason why it changed a field.
+	 * @return the changes
+	 */
+	public ProjectDescriptionChanges getChanges() {
+		return this.changes;
 	}
 
 	@Override

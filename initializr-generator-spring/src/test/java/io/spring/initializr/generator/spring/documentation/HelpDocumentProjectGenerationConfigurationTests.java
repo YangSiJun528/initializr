@@ -20,6 +20,7 @@ import java.nio.file.Path;
 
 import io.spring.initializr.generator.io.template.MustacheTemplateRenderer;
 import io.spring.initializr.generator.project.MutableProjectDescription;
+import io.spring.initializr.generator.project.ProjectDescriptionField;
 import io.spring.initializr.generator.spring.scm.git.GitIgnoreCustomizer;
 import io.spring.initializr.generator.test.InitializrMetadataTestBuilder;
 import io.spring.initializr.generator.test.project.ProjectAssetTester;
@@ -70,6 +71,17 @@ class HelpDocumentProjectGenerationConfigurationTests {
 		description.addDependency("example", mock(io.spring.initializr.generator.buildsystem.Dependency.class));
 		ProjectStructure project = this.projectTester.generate(description);
 		assertThat(project).filePaths().containsOnly("HELP.md");
+	}
+
+	@Test
+	void helpDocumentIsContributedWithRecordedProjectDescriptionChange() {
+		MutableProjectDescription description = new MutableProjectDescription();
+		description.getChanges()
+			.add(ProjectDescriptionField.JVM_VERSION, "The JVM level was changed to '21' as this is a test.");
+		ProjectStructure project = this.projectTester.generate(description);
+		assertThat(project).filePaths().containsOnly("HELP.md");
+		assertThat(project).textFile("HELP.md")
+			.contains("# Read Me First", "* The JVM level was changed to '21' as this is a test.");
 	}
 
 	@Test

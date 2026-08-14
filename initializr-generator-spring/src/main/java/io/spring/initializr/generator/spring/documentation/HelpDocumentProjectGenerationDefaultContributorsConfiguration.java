@@ -38,6 +38,11 @@ public class HelpDocumentProjectGenerationDefaultContributorsConfiguration {
 	}
 
 	@Bean
+	public HelpDocumentCustomizer projectDescriptionChangesHelpDocumentCustomizer(ProjectDescription description) {
+		return new ProjectDescriptionChangesHelpDocumentCustomizer(description);
+	}
+
+	@Bean
 	public GitIgnoreCustomizer helpDocumentGitIgnoreCustomizer(HelpDocument document) {
 		return new HelpDocumentGitIgnoreCustomizer(document);
 	}
