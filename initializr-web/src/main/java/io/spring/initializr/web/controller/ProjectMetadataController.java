@@ -150,11 +150,10 @@ public class ProjectMetadataController extends AbstractMetadataController {
 	protected ResponseEntity<String> dependenciesFor(InitializrMetadataVersion metadataVersion,
 			@Nullable String bootVersion) {
 		InitializrMetadata metadata = this.metadataProvider.get();
-		Version effectiveBootVersion = (bootVersion != null) ? Version.parse(bootVersion)
-				: getDefaultBootVersion(metadata);
+		Version effectiveBootVersion = resolveBootVersion(metadata, bootVersion);
 		Platform platform = metadata.getConfiguration().getEnv().getPlatform();
 		if (!platform.isCompatibleVersion(effectiveBootVersion)) {
-			throw new InvalidProjectRequestException("Invalid Spring Boot version '" + bootVersion
+			throw new InvalidProjectRequestException("Invalid Spring Boot version '" + effectiveBootVersion
 					+ "', Spring Boot compatibility range is " + platform.determineCompatibilityRangeRequirement());
 		}
 		DependencyMetadata dependencyMetadata = this.dependencyMetadataProvider.get(metadata, effectiveBootVersion);
@@ -164,6 +163,18 @@ public class ProjectMetadataController extends AbstractMetadataController {
 			.eTag(createUniqueId(content))
 			.cacheControl(determineCacheControlFor(metadata))
 			.body(content);
+	}
+
+	private Version resolveBootVersion(InitializrMetadata metadata, @Nullable String bootVersion) {
+		if (bootVersion == null) {
+			return getDefaultBootVersion(metadata);
+		}
+		Version effectiveBootVersion = metadata.resolveBootVersion(bootVersion);
+		if (effectiveBootVersion == null) {
+			throw new InvalidProjectRequestException(
+					"Invalid Spring Boot version '" + bootVersion + "' check project metadata");
+		}
+		return effectiveBootVersion;
 	}
 
 	private Version getDefaultBootVersion(InitializrMetadata metadata) {

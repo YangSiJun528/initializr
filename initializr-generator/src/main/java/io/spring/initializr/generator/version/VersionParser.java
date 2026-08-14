@@ -47,8 +47,16 @@ public class VersionParser {
 	 */
 	public static final VersionParser DEFAULT = new VersionParser(Collections.emptyList());
 
+	private static final String WILDCARD = "x";
+
+	// Numbers are limited to 9 digits so that they always fit in an int
 	private static final Pattern VERSION_REGEX = Pattern
-		.compile("^(\\d+)\\.(\\d+|x)\\.(\\d+|x)(?:([.|-])([^0-9]+)(\\d+)?)?$");
+		.compile("^(\\d{1,9})\\.(\\d{1,9}|x)\\.(\\d{1,9}|x)(?:([.|-])([^0-9]+)(\\d{1,9})?)?$");
+
+	// Matches anything that starts with a number, so that an abbreviated form can be
+	// detected. The last group captures whatever follows the numbers, if anything
+	private static final Pattern LEADING_VERSION_REGEX = Pattern
+		.compile("^(\\d{1,9})(?:\\.(\\d{1,9}|x))?(?:\\.(\\d{1,9}|x))?(.*)$");
 
 	private static final Pattern RANGE_REGEX = Pattern.compile("([(\\[])(.*),(.*)([)\\]])");
 
@@ -77,12 +85,12 @@ public class VersionParser {
 		String minor = matcher.group(2);
 		String patch = matcher.group(3);
 		Qualifier qualifier = parseQualifier(matcher);
-		if ("x".equals(minor) || "x".equals(patch)) {
-			Integer minorInt = ("x".equals(minor) ? null : Integer.parseInt(minor));
+		if (WILDCARD.equals(minor) || WILDCARD.equals(patch)) {
+			Integer minorInt = (WILDCARD.equals(minor) ? null : Integer.parseInt(minor));
 			Version latest = findLatestVersion(major, minorInt, qualifier);
 			if (latest == null) {
-				return new Version(major, ("x".equals(minor) ? 999 : Integer.parseInt(minor)),
-						("x".equals(patch) ? 999 : Integer.parseInt(patch)), qualifier);
+				return new Version(major, (WILDCARD.equals(minor) ? 999 : Integer.parseInt(minor)),
+						(WILDCARD.equals(patch) ? 999 : Integer.parseInt(patch)), qualifier);
 			}
 			return new Version(major, latest.getMinor(), latest.getPatch(), latest.getQualifier());
 		}
@@ -117,6 +125,56 @@ public class VersionParser {
 		catch (InvalidVersionException ex) {
 			return null;
 		}
+	}
+
+	/**
+	 * Resolve the specified string representation of a {@link Version} against the
+	 * configured "latest versions".
+	 * <p>
+	 * The minor and patch numbers can be omitted or specified as {@code x}, in which case
+	 * the latest matching general availability version is returned, for instance
+	 * {@code 4}, {@code 4.x.x} or {@code 4.0.x}. A {@code x} in any other position, such
+	 * as {@code 4.x.3} or {@code 4.0.x-M1}, cannot be resolved. Any other value is parsed
+	 * as is, see {@link #safeParse(String)}.
+	 * <p>
+	 * Contrary to {@link #parse(String)}, a wildcard that matches no configured version
+	 * does not fall back to an arbitrary version number.
+	 * @param text the version text
+	 * @return a Version instance for the specified version text or {@code null} if the
+	 * version is invalid, if it uses a wildcard that cannot be resolved or if no
+	 * configured version matches
+	 */
+	public @Nullable Version resolveLatest(String text) {
+		Assert.notNull(text, "Text must not be null");
+		Matcher matcher = LEADING_VERSION_REGEX.matcher(text.trim());
+		if (!matcher.matches()) {
+			// Does not even start with a number, there is nothing to resolve
+			return safeParse(text);
+		}
+		String minor = matcher.group(2);
+		String patch = matcher.group(3);
+		boolean qualified = StringUtils.hasText(matcher.group(4));
+		if (!qualified && (patch == null || WILDCARD.equals(patch))) {
+			// An abbreviated form, such as 4, 4.x, 4.0, 4.x.x or 4.0.x
+			Integer major = Integer.valueOf(matcher.group(1));
+			return findLatestGeneralAvailability(major,
+					(minor == null || WILDCARD.equals(minor)) ? null : Integer.valueOf(minor));
+		}
+		if (WILDCARD.equals(minor) || WILDCARD.equals(patch)) {
+			// A wildcard that is not trailing, such as 4.x.3, or one combined with a
+			// qualifier, such as 4.0.x-M1: no latest version to resolve it against
+			return null;
+		}
+		return safeParse(text);
+	}
+
+	private @Nullable Version findLatestGeneralAvailability(Integer major, @Nullable Integer minor) {
+		return this.latestVersions.stream()
+			.filter(Version::isGeneralAvailability)
+			.filter((candidate) -> major.equals(candidate.getMajor())
+					&& (minor == null || minor.equals(candidate.getMinor())))
+			.max(Version::compareTo)
+			.orElse(null);
 	}
 
 	/**

@@ -146,6 +146,15 @@ public final class Version implements Serializable, Comparable<Version> {
 	}
 
 	/**
+	 * Specify if this version is a general availability (GA) release, that is a version
+	 * with no qualifier or with the special {@code RELEASE} qualifier.
+	 * @return {@code true} if this version is a GA release
+	 */
+	public boolean isGeneralAvailability() {
+		return (this.qualifier == null) || VersionQualifierComparator.RELEASE.equals(this.qualifier.getId());
+	}
+
+	/**
 	 * Parse the string representation of a {@link Version}. Throws an
 	 * {@link InvalidVersionException} if the version could not be parsed.
 	 * @param text the version text

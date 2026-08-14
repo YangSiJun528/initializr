@@ -213,8 +213,41 @@ class InitializrMetadataTests {
 		assertThat(metadata.getPackageName().getContent()).isEqualTo("org.ac_me.foo_bar");
 	}
 
+	@Test
+	void resolveBootVersionUsesUpdatedVersions() {
+		InitializrMetadata metadata = initializeMetadata("4.0.1");
+		assertThat(metadata.resolveBootVersion("4.x.x")).hasToString("4.0.1");
+		metadata.updateSpringBootVersions(List.of(DefaultMetadataElement.create("4.0.2", false)));
+		assertThat(metadata.resolveBootVersion("4.x.x")).hasToString("4.0.2");
+	}
+
+	@Test
+	void resolveBootVersionUsesVersionsThatAreSetWithoutUpdatingTheCompatibilityRanges() {
+		InitializrMetadata metadata = initializeMetadata();
+		metadata.getBootVersions()
+			.setContent(List.of(DefaultMetadataElement.create("4.0.1", false),
+					DefaultMetadataElement.create("4.0.2", true)));
+		assertThat(metadata.resolveBootVersion("4.x.x")).hasToString("4.0.2");
+	}
+
+	@Test
+	void resolveBootVersionIgnoresAvailableVersionsThatCannotBeParsed() {
+		InitializrMetadata metadata = initializeMetadata();
+		metadata.getBootVersions()
+			.setContent(List.of(DefaultMetadataElement.create("4.0.1", false),
+					DefaultMetadataElement.create("not-a-version", false)));
+		assertThat(metadata.resolveBootVersion("4.x.x")).hasToString("4.0.1");
+	}
+
 	private InitializrMetadata initializeMetadata() {
 		return new InitializrMetadata();
+	}
+
+	private InitializrMetadata initializeMetadata(String... bootVersions) {
+		InitializrMetadata metadata = initializeMetadata();
+		metadata.updateSpringBootVersions(
+				Arrays.stream(bootVersions).map((version) -> DefaultMetadataElement.create(version, false)).toList());
+		return metadata;
 	}
 
 	private void addTestDependencyGroup(InitializrMetadata metadata, Dependency... dependencies) {

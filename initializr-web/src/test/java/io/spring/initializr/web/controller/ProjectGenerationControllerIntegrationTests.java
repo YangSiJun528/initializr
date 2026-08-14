@@ -134,6 +134,26 @@ class ProjectGenerationControllerIntegrationTests extends AbstractInitializrCont
 	}
 
 	@Test
+	void majorOnlyPlatformVersionIsResolved() {
+		ProjectStructure project = downloadTgz("/starter.tgz?bootVersion=2");
+		assertThat(project).mavenBuild().hasParent("org.springframework.boot", "spring-boot-starter-parent", "2.4.4");
+	}
+
+	@Test
+	void wildcardPlatformVersionIsResolved() {
+		ProjectStructure project = downloadTgz("/starter.tgz?bootVersion=2.3.x");
+		assertThat(project).mavenBuild()
+			.hasParent("org.springframework.boot", "spring-boot-starter-parent", "2.3.10.RELEASE");
+	}
+
+	@Test
+	void wildcardPlatformVersionThatDoesNotMatchIsRejected() {
+		assertThatExceptionOfType(HttpClientErrorException.class)
+			.isThrownBy(() -> execute("/starter.tgz?bootVersion=9.9.x", byte[].class, null, (String[]) null))
+			.satisfies((ex) -> assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST));
+	}
+
+	@Test
 	void dependencyNotInRange() {
 		try {
 			execute("/starter.tgz?dependencies=org.acme:bur", byte[].class, null, (String[]) null);

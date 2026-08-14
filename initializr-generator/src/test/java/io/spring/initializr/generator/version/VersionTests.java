@@ -22,6 +22,8 @@ import java.util.stream.Stream;
 
 import io.spring.initializr.generator.version.Version.Format;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -210,6 +212,18 @@ class VersionTests {
 	void formatNoQualifierToV2() {
 		Version version = Version.parse("1.2.0");
 		assertThat(version.format(Format.V2)).hasToString("1.2.0");
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = { "1.2.0", "1.2.0.RELEASE" })
+	void isGeneralAvailabilityWithGaVersion(String text) {
+		assertThat(Version.parse(text).isGeneralAvailability()).isTrue();
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = { "1.2.0-M1", "1.2.0.RC1", "1.2.0-SNAPSHOT", "1.2.0.BUILD-SNAPSHOT" })
+	void isGeneralAvailabilityWithPreReleaseVersion(String text) {
+		assertThat(Version.parse(text).isGeneralAvailability()).isFalse();
 	}
 
 	private Version parse(String text) {
