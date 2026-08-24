@@ -18,6 +18,7 @@ package io.spring.initializr.metadata;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import org.jspecify.annotations.Nullable;
 
 import org.springframework.util.Assert;
@@ -31,7 +32,7 @@ import org.springframework.util.StringUtils;
  * @author Stephane Nicoll
  */
 @JsonIgnoreProperties({ "default", "all" })
-@JsonInclude(JsonInclude.Include.NON_NULL)
+@JsonInclude(Include.NON_NULL)
 public abstract class ServiceCapability<T> implements Cloneable {
 
 	private final String id;

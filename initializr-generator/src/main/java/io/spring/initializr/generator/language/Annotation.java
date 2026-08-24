@@ -290,11 +290,11 @@ public final class Annotation {
 			}
 		};
 
-		protected boolean isCompatible(AttributeType attributeType) {
+		boolean isCompatible(AttributeType attributeType) {
 			return this.equals(attributeType) || attributeType == AttributeType.CODE;
 		}
 
-		protected Collection<String> getImports(Object value) {
+		Collection<String> getImports(Object value) {
 			if (value instanceof CodeBlock codeBlock) {
 				return codeBlock.getImports();
 			}

@@ -22,6 +22,7 @@ import java.util.StringTokenizer;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import io.spring.initializr.generator.version.InvalidVersionException;
 import io.spring.initializr.generator.version.Version;
 import io.spring.initializr.generator.version.VersionParser;
@@ -37,7 +38,7 @@ import org.springframework.util.StringUtils;
  *
  * @author Stephane Nicoll
  */
-@JsonInclude(JsonInclude.Include.NON_EMPTY)
+@JsonInclude(Include.NON_EMPTY)
 public class Dependency extends MetadataElement implements Describable {
 
 	/**
@@ -108,7 +109,7 @@ public class Dependency extends MetadataElement implements Describable {
 
 	private @Nullable String repository;
 
-	@JsonInclude(JsonInclude.Include.NON_DEFAULT)
+	@JsonInclude(Include.NON_DEFAULT)
 	private int weight;
 
 	/**

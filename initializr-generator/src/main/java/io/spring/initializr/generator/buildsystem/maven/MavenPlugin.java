@@ -281,7 +281,7 @@ public class MavenPlugin {
 	 */
 	public static class ExecutionBuilder {
 
-		private @Nullable final String id;
+		private final @Nullable String id;
 
 		private @Nullable String phase;
 

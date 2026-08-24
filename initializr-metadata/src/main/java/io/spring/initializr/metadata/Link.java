@@ -28,6 +28,7 @@ import java.util.regex.Pattern;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import org.jspecify.annotations.Nullable;
 
 import org.springframework.util.Assert;
@@ -60,7 +61,7 @@ public class Link {
 	/**
 	 * Specify if the URI is templated.
 	 */
-	@JsonInclude(JsonInclude.Include.NON_DEFAULT)
+	@JsonInclude(Include.NON_DEFAULT)
 	private boolean templated;
 
 	@JsonIgnore
@@ -69,7 +70,7 @@ public class Link {
 	/**
 	 * A description of the link.
 	 */
-	@JsonInclude(JsonInclude.Include.NON_NULL)
+	@JsonInclude(Include.NON_NULL)
 	private @Nullable String description;
 
 	public Link() {

@@ -22,6 +22,7 @@ import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import io.spring.initializr.generator.version.InvalidVersionException;
 import io.spring.initializr.generator.version.Version;
 import io.spring.initializr.generator.version.VersionParser;
@@ -37,7 +38,7 @@ import org.springframework.util.Assert;
  *
  * @author Stephane Nicoll
  */
-@JsonInclude(JsonInclude.Include.NON_DEFAULT)
+@JsonInclude(Include.NON_DEFAULT)
 public class BillOfMaterials {
 
 	private @Nullable String groupId;
@@ -233,7 +234,7 @@ public class BillOfMaterials {
 	/**
 	 * Mapping information.
 	 */
-	@JsonInclude(JsonInclude.Include.NON_EMPTY)
+	@JsonInclude(Include.NON_EMPTY)
 	public static class Mapping {
 
 		private @Nullable String compatibilityRange;
