@@ -26,6 +26,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.web.client.HttpClientErrorException;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
 /**
  * Integration tests for {@link ProjectGenerationController} with custom environment.
@@ -51,27 +52,25 @@ class ProjectGenerationControllerCustomEnvIntegrationTests extends AbstractIniti
 
 	@Test
 	void generateProjectWithUnsupportedPlatformVersion() {
-		try {
-			execute("/starter.zip?bootVersion=1.5.12.RELEASE", byte[].class, null, (String[]) null);
-		}
-		catch (HttpClientErrorException ex) {
-			assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-			assertThat(ex.getMessage()).contains("Invalid Spring Boot version",
-					"Spring Boot compatibility range is >=2.0.0.RELEASE");
-		}
+		assertThatExceptionOfType(HttpClientErrorException.class)
+			.isThrownBy(() -> execute("/starter.zip?bootVersion=1.5.12.RELEASE", byte[].class, null, (String[]) null))
+			.satisfies((ex) -> {
+				assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+				assertThat(ex.getMessage()).contains("Invalid Spring Boot version",
+						"Spring Boot compatibility range is >=2.0.0.RELEASE");
+			});
 	}
 
 	@Test
 	void getDependenciesMetadataWithUnsupportedPlatformVersion() {
-		try {
-			execute("/dependencies?bootVersion=1.5.12.RELEASE", String.class, "application/vnd.initializr.v2.1+json",
-					"application/json");
-		}
-		catch (HttpClientErrorException ex) {
-			assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-			assertThat(ex.getMessage()).contains("Invalid Spring Boot version",
-					"Spring Boot compatibility range is >=2.0.0.RELEASE");
-		}
+		assertThatExceptionOfType(HttpClientErrorException.class)
+			.isThrownBy(() -> execute("/dependencies?bootVersion=1.5.12.RELEASE", String.class,
+					"application/vnd.initializr.v2.1+json", "application/json"))
+			.satisfies((ex) -> {
+				assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+				assertThat(ex.getMessage()).contains("Invalid Spring Boot version",
+						"Spring Boot compatibility range is >=2.0.0.RELEASE");
+			});
 	}
 
 }

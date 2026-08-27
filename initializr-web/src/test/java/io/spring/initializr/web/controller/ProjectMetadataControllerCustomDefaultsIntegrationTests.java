@@ -38,6 +38,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.web.client.HttpClientErrorException;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
 /**
  * Integration tests for {@link ProjectMetadataController} on a real http server.
@@ -67,12 +68,9 @@ class ProjectMetadataControllerCustomDefaultsIntegrationTests extends AbstractFu
 
 	@Test
 	void textPlainNotAccepted() {
-		try {
-			execute("/metadata/config", String.class, null, "text/plain");
-		}
-		catch (HttpClientErrorException ex) {
-			assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.NOT_ACCEPTABLE);
-		}
+		assertThatExceptionOfType(HttpClientErrorException.class)
+			.isThrownBy(() -> execute("/metadata/config", String.class, null, "text/plain"))
+			.satisfies((ex) -> assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.NOT_ACCEPTABLE));
 	}
 
 	@Test
