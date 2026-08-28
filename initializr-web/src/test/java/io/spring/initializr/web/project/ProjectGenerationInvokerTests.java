@@ -48,6 +48,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
@@ -103,12 +104,9 @@ class ProjectGenerationInvokerTests {
 		WebProjectRequest request = new WebProjectRequest();
 		request.initialize(metadata);
 		request.setType("foo-bar");
-		try {
-			this.invoker.invokeProjectStructureGeneration(request);
-		}
-		catch (Exception ex) {
-			verifyProjectFailedEventFor(request, ex);
-		}
+		assertThatExceptionOfType(InvalidProjectRequestException.class)
+			.isThrownBy(() -> this.invoker.invokeProjectStructureGeneration(request))
+			.satisfies((ex) -> verifyProjectFailedEventFor(request, ex));
 	}
 
 	@Test
@@ -167,12 +165,9 @@ class ProjectGenerationInvokerTests {
 		WebProjectRequest request = new WebProjectRequest();
 		request.initialize(metadata);
 		request.setType("foo-bar");
-		try {
-			this.invoker.invokeBuildGeneration(request);
-		}
-		catch (Exception ex) {
-			verifyProjectFailedEventFor(request, ex);
-		}
+		assertThatExceptionOfType(InvalidProjectRequestException.class)
+			.isThrownBy(() -> this.invoker.invokeBuildGeneration(request))
+			.satisfies((ex) -> verifyProjectFailedEventFor(request, ex));
 	}
 
 	@Test

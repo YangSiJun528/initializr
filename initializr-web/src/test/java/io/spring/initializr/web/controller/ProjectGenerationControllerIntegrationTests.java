@@ -155,12 +155,14 @@ class ProjectGenerationControllerIntegrationTests extends AbstractInitializrCont
 
 	@Test
 	void dependencyNotInRange() {
-		try {
-			execute("/starter.tgz?dependencies=org.acme:bur", byte[].class, null, (String[]) null);
-		}
-		catch (HttpClientErrorException ex) {
-			assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.NOT_ACCEPTABLE);
-		}
+		assertThatExceptionOfType(HttpClientErrorException.class)
+			.isThrownBy(() -> execute("/starter.tgz?dependencies=org.acme:bur&bootVersion=2.3.10.RELEASE", byte[].class,
+					null, (String[]) null))
+			.satisfies((ex) -> {
+				assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+				assertStandardErrorBody(ex.getResponseBodyAsString(),
+						"Dependency 'org.acme:bur' is not compatible with Spring Boot 2.3.10.RELEASE");
+			});
 	}
 
 	@Test

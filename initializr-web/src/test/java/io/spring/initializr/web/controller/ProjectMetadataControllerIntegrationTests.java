@@ -84,14 +84,13 @@ class ProjectMetadataControllerIntegrationTests extends AbstractInitializrContro
 
 	@Test
 	void metadataWithInvalidPlatformVersion() {
-		try {
-			execute("/dependencies?bootVersion=2.2.17.RELEASE", String.class, "application/vnd.initializr.v2.1+json",
-					"application/json");
-		}
-		catch (HttpClientErrorException ex) {
-			assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-			assertThat(ex.getResponseBodyAsString()).contains("2.2.17.RELEASE");
-		}
+		assertThatExceptionOfType(HttpClientErrorException.class)
+			.isThrownBy(() -> execute("/dependencies?bootVersion=2.2.17.RELEASE", String.class,
+					"application/vnd.initializr.v2.1+json", "application/json"))
+			.satisfies((ex) -> {
+				assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+				assertThat(ex.getResponseBodyAsString()).contains("2.2.17.RELEASE");
+			});
 	}
 
 	@Test
@@ -161,12 +160,9 @@ class ProjectMetadataControllerIntegrationTests extends AbstractInitializrContro
 
 	@Test
 	void metadataWithUnknownAcceptHeader() {
-		try {
-			invokeHome(null, "application/vnd.initializr.v5.4+json");
-		}
-		catch (HttpClientErrorException ex) {
-			assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.NOT_ACCEPTABLE);
-		}
+		assertThatExceptionOfType(HttpClientErrorException.class)
+			.isThrownBy(() -> invokeHome(null, "application/vnd.initializr.v5.4+json"))
+			.satisfies((ex) -> assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.NOT_ACCEPTABLE));
 	}
 
 	@Test
