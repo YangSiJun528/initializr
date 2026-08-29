@@ -15,6 +15,7 @@
 	<properties>
 		<main.basedir>${basedir}/..</main.basedir>
 	</properties>
+	<url>${git.url}</url>
 	<scm>
 		<url>${git.url}</url>
 		<connection>${git.connection}</connection>
