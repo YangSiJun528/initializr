@@ -25,92 +25,94 @@ import java.nio.file.StandardOpenOption;
 import java.util.Map;
 
 import io.spring.initializr.generator.buildsystem.BuildSystem;
+import io.spring.initializr.generator.buildsystem.SourceSet;
+import io.spring.initializr.generator.configuration.format.ConfigurationFileFormat;
 import io.spring.initializr.generator.language.Language;
 import io.spring.initializr.generator.language.SourceStructure;
 import io.spring.initializr.generator.project.ProjectDescription;
 import io.spring.initializr.generator.project.contributor.ProjectContributor;
-import io.spring.initializr.generator.spring.properties.ApplicationProperties.SectionKey;
-import org.jspecify.annotations.Nullable;
 
 import org.springframework.util.Assert;
 
 /**
- * Base {@link ProjectContributor} that contributes application configuration files to a
- * project. A file is written per source set and Spring profile that has properties,
- * following the {@code application[-{profile}]} convention, resolved against the
- * {@link BuildSystem}'s main or test {@link SourceStructure}. The file for the main
- * source set and the default profile is always written, even if it is empty.
+ * Base {@link ProjectContributor} that writes the application configuration files of a
+ * project, one per {@link ApplicationPropertiesFile} that has properties. The default
+ * file of the main source set is written even when empty.
  *
  * @author Denis A. Altoé Falqueto
- * @see ApplicationProperties#section(SourceSet, String)
+ * @author Moritz Halbritter
+ * @see ApplicationProperties
  */
 abstract class AbstractApplicationPropertiesContributor implements ProjectContributor {
 
 	private final ApplicationProperties properties;
 
-	private final BuildSystem buildSystem;
+	private final ProjectDescription description;
 
-	private final Language language;
-
-	private final String extension;
+	private final ConfigurationFileFormat format;
 
 	/**
 	 * Creates a new instance.
 	 * @param properties the application properties to contribute
-	 * @param description the description of the project, used to resolve the main and
-	 * test source structures
-	 * @param extension the extension of the configuration files to write, without the
-	 * leading dot
+	 * @param description the description of the project, used to resolve the source
+	 * structures
+	 * @param format the format of the written files, defining their extension
 	 */
 	protected AbstractApplicationPropertiesContributor(ApplicationProperties properties, ProjectDescription description,
-			String extension) {
-		BuildSystem descriptionBuildSystem = description.getBuildSystem();
-		Assert.state(descriptionBuildSystem != null, "'buildSystem' must not be null");
-		Language descriptionLanguage = description.getLanguage();
-		Assert.state(descriptionLanguage != null, "'language' must not be null");
+			ConfigurationFileFormat format) {
 		this.properties = properties;
-		this.buildSystem = descriptionBuildSystem;
-		this.language = descriptionLanguage;
-		this.extension = extension;
+		this.description = description;
+		this.format = format;
 	}
 
 	@Override
 	public void contribute(Path projectRoot) throws IOException {
-		writeSection(projectRoot, SourceSet.MAIN, null, this.properties);
-		for (Map.Entry<SectionKey, ApplicationProperties> entry : this.properties.getSections().entrySet()) {
-			ApplicationProperties section = entry.getValue();
-			if (section.hasProperties()) {
-				writeSection(projectRoot, entry.getKey().sourceSet(), entry.getKey().profile(), section);
-			}
+		BuildSystem buildSystem = this.description.getBuildSystem();
+		Assert.state(buildSystem != null, "'buildSystem' must not be null");
+		Language language = this.description.getLanguage();
+		Assert.state(language != null, "'language' must not be null");
+		for (SourceSet sourceSet : SourceSet.values()) {
+			contribute(buildSystem.getSource(projectRoot, language, sourceSet), sourceSet);
 		}
 	}
 
-	/**
-	 * Writes the given properties using the given writer.
-	 * @param properties the properties to write
-	 * @param writer the writer to use
-	 */
-	protected abstract void write(ApplicationProperties properties, PrintWriter writer);
+	private void contribute(SourceStructure sourceStructure, SourceSet sourceSet) throws IOException {
+		for (Map.Entry<ProfileName, ApplicationPropertiesFile> entry : this.properties.files(sourceSet).entrySet()) {
+			ProfileName profile = entry.getKey();
+			ApplicationPropertiesFile file = entry.getValue();
+			// Generated projects always ship a main application file, even an empty one.
+			// Every other file is written only if it has properties.
+			boolean mainDefault = (sourceSet == SourceSet.MAIN) && ProfileName.DEFAULT.equals(profile);
+			if (file.isEmpty() && !mainDefault) {
+				continue;
+			}
+			writeFile(sourceStructure, profile, file);
+		}
+	}
 
-	private void writeSection(Path projectRoot, SourceSet sourceSet, @Nullable String profile,
-			ApplicationProperties properties) throws IOException {
-		Path output = resolveOutputFile(projectRoot, sourceSet, profile);
+	private void writeFile(SourceStructure sourceStructure, ProfileName profile, ApplicationPropertiesFile file)
+			throws IOException {
+		Path output = resolveOutputFile(sourceStructure, profile);
 		if (!Files.exists(output)) {
 			Files.createDirectories(output.getParent());
 			Files.createFile(output);
 		}
 		try (PrintWriter writer = new PrintWriter(Files.newOutputStream(output, StandardOpenOption.APPEND), false,
 				StandardCharsets.UTF_8)) {
-			write(properties, writer);
+			writeProperties(file.properties(), writer);
 		}
 	}
 
-	private Path resolveOutputFile(Path projectRoot, SourceSet sourceSet, @Nullable String profile) {
-		SourceStructure sourceStructure = (sourceSet == SourceSet.TEST)
-				? this.buildSystem.getTestSource(projectRoot, this.language)
-				: this.buildSystem.getMainSource(projectRoot, this.language);
-		String profileSuffix = (profile != null) ? "-" + profile : "";
-		return sourceStructure.getResourcesDirectory().resolve("application" + profileSuffix + "." + this.extension);
+	/**
+	 * Writes the given properties in the format of this contributor.
+	 * @param properties the properties to write, keyed by their dotted name
+	 * @param writer the writer to use
+	 */
+	protected abstract void writeProperties(Map<String, Object> properties, PrintWriter writer);
+
+	private Path resolveOutputFile(SourceStructure sourceStructure, ProfileName profile) {
+		String fileName = "application" + profile.fileSuffix() + this.format.fileExtension();
+		return sourceStructure.getResourcesDirectory().resolve(fileName);
 	}
 
 }

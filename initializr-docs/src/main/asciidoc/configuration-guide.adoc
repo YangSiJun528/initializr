@@ -215,15 +215,14 @@ requires you to add a certain plugin to the build, you can provide a `BuildCusto
 that adds the plugin and the customizer will be called according to the order specified on
 it.
 
-Similarly, an `ApplicationPropertiesCustomizer` can be used to contribute properties to
-the application configuration file of the generated project, that is
-`application.properties` or `application.yaml` depending on the requested
-`ConfigurationFileFormat`. Properties added directly to the `ApplicationProperties`
-argument are written to the configuration file of the main source set and the default
-profile. Properties for another source set or Spring profile can be added to the matching
-`section`, and a `src/{sourceSet}/resources/application[-{profile}].{properties|yaml}`
-file, resolved against the project's build system, is generated for every section that
-contains properties, as shown in the following example:
+Similarly, an `ApplicationPropertiesCustomizer` can contribute properties to the
+configuration files of the generated project, that is `application.properties` or
+`application.yaml` depending on the requested `ConfigurationFileFormat`. Properties added
+directly belong to the main source set and the default profile, `file` and `profile`
+address the other source sets and Spring profiles. Each combination is written to
++src/{sourceSet}/resources/application[-{profile}]+, with the extension of the requested
+format. Combinations without properties are skipped, except for the main source set and
+the default profile, which is always written:
 
 [source,java,indent=0]
 ----

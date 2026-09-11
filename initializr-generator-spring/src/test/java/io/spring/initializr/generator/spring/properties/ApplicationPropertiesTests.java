@@ -16,292 +16,85 @@
 
 package io.spring.initializr.generator.spring.properties;
 
-import java.io.PrintWriter;
-import java.io.StringWriter;
-import java.util.Collections;
-import java.util.List;
-
+import io.spring.initializr.generator.buildsystem.SourceSet;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
-import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
 import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
 
 /**
  * Tests for {@link ApplicationProperties}.
  *
  * @author Moritz Halbritter
- * @author Rodrigo Mibielli Peixoto
  */
 class ApplicationPropertiesTests {
 
 	@Test
-	void getKeyFound() {
+	void shouldSeePropertyAddedViaMainSourceSet() {
 		ApplicationProperties properties = new ApplicationProperties();
-		properties.add("test", "123");
-		Object value = properties.get("test");
-		assertThat(value).isEqualTo("123");
+		properties.file(SourceSet.MAIN).add("test", "value");
+		assertThat(properties.get("test")).isEqualTo("value");
 	}
 
 	@Test
-	void getKeyNotFound() {
-		ApplicationProperties properties = new ApplicationProperties();
-		properties.add("test", "123");
-		Object value = properties.get("test2");
-		assertThat(value).isNull();
-	}
-
-	@Test
-	void getKeyFoundWithCast() {
-		ApplicationProperties properties = new ApplicationProperties();
-		properties.add("test", 123L);
-		Long value = properties.get("test", Long.class);
-		assertThat(value).isEqualTo(123L);
-	}
-
-	@Test
-	void getKeyNotFoundWithCast() {
-		ApplicationProperties properties = new ApplicationProperties();
-		properties.add("test", 123.4);
-		Double value = properties.get("test2", Double.class);
-		assertThat(value).isNull();
-	}
-
-	@Test
-	void getThrowsCastException() {
-		ApplicationProperties properties = new ApplicationProperties();
-		properties.add("test", 123L);
-		assertThatExceptionOfType(ClassCastException.class).isThrownBy(() -> properties.get("test", Integer.class));
-	}
-
-	@Test
-	void containsKey() {
+	void shouldSeePropertyAddedViaRootInMainSourceSet() {
 		ApplicationProperties properties = new ApplicationProperties();
 		properties.add("test", "value");
-		assertThat(properties.contains("test")).isTrue();
+		assertThat(properties.file(SourceSet.MAIN).get("test")).isEqualTo("value");
 	}
 
 	@Test
-	void doesNotContainKey() {
+	void shouldUseMainSourceSetForProfile() {
 		ApplicationProperties properties = new ApplicationProperties();
-		properties.add("test", "value");
-		assertThat(properties.contains("not-found")).isFalse();
+		assertThat(properties.profile("dev")).isSameAs(properties.file(SourceSet.MAIN, "dev"));
 	}
 
 	@Test
-	void removesKeyFound() {
+	void shouldReturnSameFileForSameSourceSetAndProfile() {
 		ApplicationProperties properties = new ApplicationProperties();
-		properties.add("test", "value");
-		assertThat(properties.remove("test")).isTrue();
-		assertThat(properties.contains("test")).isFalse();
+		assertThat(properties.file(SourceSet.TEST)).isSameAs(properties.file(SourceSet.TEST));
+		assertThat(properties.file(SourceSet.TEST, "dev")).isSameAs(properties.file(SourceSet.TEST, "dev"));
 	}
 
 	@Test
-	void doesNotRemoveKeyNotFound() {
-		ApplicationProperties properties = new ApplicationProperties();
-		properties.add("test", "value");
-		assertThat(properties.remove("not-found")).isFalse();
-		assertThat(properties.contains("test")).isTrue();
-	}
-
-	@Test
-	void stringProperty() {
-		ApplicationProperties properties = new ApplicationProperties();
-		properties.add("test", "string");
-		String written = writeProperties(properties);
-		assertThat(written).isEqualToIgnoringNewLines("test=string");
-	}
-
-	@Test
-	void collectionProperty() {
-		ApplicationProperties properties = new ApplicationProperties();
-		List<String> strings = List.of("string1", "string2");
-		properties.add("test", strings);
-		String written = writeProperties(properties);
-		assertThat(written).isEqualToIgnoringNewLines("test=string1,string2");
-	}
-
-	@Test
-	void emptyCollectionProperty() {
-		ApplicationProperties properties = new ApplicationProperties();
-		properties.add("test", Collections.emptyList());
-		String written = writeProperties(properties);
-		assertThat(written).isEqualToIgnoringNewLines("test=");
-	}
-
-	@Test
-	void longProperty() {
-		ApplicationProperties properties = new ApplicationProperties();
-		properties.add("test", 1);
-		String written = writeProperties(properties);
-		assertThat(written).isEqualToIgnoringNewLines("test=1");
-	}
-
-	@Test
-	void doubleProperty() {
-		ApplicationProperties properties = new ApplicationProperties();
-		properties.add("test", 0.1);
-		String written = writeProperties(properties);
-		assertThat(written).isEqualToIgnoringNewLines("test=0.1");
-	}
-
-	@Test
-	void booleanProperty() {
-		ApplicationProperties properties = new ApplicationProperties();
-		properties.add("test", false);
-		String written = writeProperties(properties);
-		assertThat(written).isEqualToIgnoringNewLines("test=false");
-	}
-
-	@Test
-	void sectionForMainSourceSetAndDefaultProfileReturnsRoot() {
-		ApplicationProperties properties = new ApplicationProperties();
-		assertThat(properties.section(SourceSet.MAIN, null)).isSameAs(properties);
-	}
-
-	@Test
-	void sectionReturnsSameInstanceForSameSourceSetAndProfile() {
-		ApplicationProperties properties = new ApplicationProperties();
-		ApplicationProperties section = properties.section(SourceSet.TEST, "integration");
-		assertThat(properties.section(SourceSet.TEST, "integration")).isSameAs(section);
-	}
-
-	@Test
-	void sectionKeepsPropertiesIsolated() {
+	void shouldKeepFilesIsolated() {
 		ApplicationProperties properties = new ApplicationProperties();
 		properties.add("test", "main-value");
-		properties.section(SourceSet.TEST).add("test", "test-value");
+		properties.file(SourceSet.TEST).add("test", "test-value");
+		properties.profile("dev").add("test", "dev-value");
 		assertThat(properties.get("test")).isEqualTo("main-value");
-		assertThat(properties.section(SourceSet.TEST).get("test")).isEqualTo("test-value");
+		assertThat(properties.file(SourceSet.TEST).get("test")).isEqualTo("test-value");
+		assertThat(properties.profile("dev").get("test")).isEqualTo("dev-value");
 	}
 
 	@Test
-	void sectionsWithSameSourceSetAndDifferentProfilesAreIsolated() {
+	void shouldAlwaysHaveMainDefaultFile() {
 		ApplicationProperties properties = new ApplicationProperties();
-		properties.section(SourceSet.MAIN, "dev").add("test", "dev-value");
-		properties.section(SourceSet.MAIN, "prod").add("test", "prod-value");
-		assertThat(properties.section(SourceSet.MAIN, "dev").get("test")).isEqualTo("dev-value");
-		assertThat(properties.section(SourceSet.MAIN, "prod").get("test")).isEqualTo("prod-value");
+		assertThat(properties.files(SourceSet.MAIN).keySet()).containsExactly(ProfileName.DEFAULT);
 	}
 
 	@Test
-	void sectionOfSectionResolvesToSameSection() {
+	void shouldReturnFilesInAdditionOrder() {
 		ApplicationProperties properties = new ApplicationProperties();
-		ApplicationProperties section = properties.section(SourceSet.TEST, null);
-		assertThat(section.section(SourceSet.MAIN, "dev")).isSameAs(properties.section(SourceSet.MAIN, "dev"));
+		properties.profile("dev");
+		properties.profile("prod");
+		assertThat(properties.files(SourceSet.MAIN).keySet()).containsExactly(ProfileName.DEFAULT,
+				new ProfileName("dev"), new ProfileName("prod"));
 	}
 
 	@Test
-	void sectionWithEmptyProfileThrows() {
+	void shouldRejectProfileEscapingTheResourcesDirectory() {
 		ApplicationProperties properties = new ApplicationProperties();
-		assertThatIllegalArgumentException().isThrownBy(() -> properties.section(SourceSet.MAIN, "  "))
-			.withMessage("'profile' must not be empty");
+		assertThatIllegalStateException().isThrownBy(() -> properties.file(SourceSet.TEST, "../../etc"))
+			.withMessageContaining("must start and end with a letter or digit");
+		assertThatIllegalStateException().isThrownBy(() -> properties.profile("../../etc"))
+			.withMessageContaining("must start and end with a letter or digit");
 	}
 
 	@Test
-	void sectionWithPathSeparatorInProfileThrows() {
+	void shouldReturnNoFilesForUnusedSourceSet() {
 		ApplicationProperties properties = new ApplicationProperties();
-		assertThatIllegalArgumentException().isThrownBy(() -> properties.section(SourceSet.MAIN, "a/b"))
-			.withMessage("'profile' must be a plain profile name, but was 'a/b'");
-	}
-
-	@Test
-	void sectionWithParentDirectoryReferenceInProfileThrows() {
-		ApplicationProperties properties = new ApplicationProperties();
-		assertThatIllegalArgumentException().isThrownBy(() -> properties.section(SourceSet.MAIN, ".."))
-			.withMessage("'profile' must be a plain profile name, but was '..'");
-	}
-
-	@Test
-	void shouldFailOnExistingProperty() {
-		ApplicationProperties properties = new ApplicationProperties();
-		properties.add("test", 1);
-		assertThatIllegalStateException().isThrownBy(() -> properties.add("test", 2))
-			.withMessage("Property 'test' already exists");
-	}
-
-	@Test
-	void writeYaml() {
-		ApplicationProperties properties = new ApplicationProperties();
-		properties.add("name", "testapp");
-		properties.add("port", 8080);
-		properties.add("app.version", "1.0");
-		properties.add("db.host", "localhost");
-		properties.add("app.config.debug", true);
-		properties.add("db.connection.timeout", 30);
-		String written = writeYaml(properties);
-		assertThat(written).isEqualToNormalizingNewlines("""
-				name: testapp
-				port: 8080
-				app:
-				  version: 1.0
-				  config:
-				    debug: true
-				db:
-				  host: localhost
-				  connection:
-				    timeout: 30
-				""");
-	}
-
-	@Test
-	void writeYamlCollection() {
-		ApplicationProperties properties = new ApplicationProperties();
-		List<Integer> ints = List.of(1, 2);
-		properties.add("test.sub", ints);
-		String written = writeYaml(properties);
-		assertThat(written).isEqualToNormalizingNewlines("""
-				test:
-				  sub:
-				    - 1
-				    - 2
-				""");
-	}
-
-	@Test
-	void writeEmptyYamlCollection() {
-		ApplicationProperties properties = new ApplicationProperties();
-		properties.add("test.sub", Collections.emptyList());
-		String written = writeYaml(properties);
-		assertThat(written).isEqualToNormalizingNewlines("""
-				test:
-				  sub: []
-				""");
-	}
-
-	@Test
-	void writeYamlFailsOnValueAndNestedMapForSameKey() {
-		ApplicationProperties properties = new ApplicationProperties();
-		properties.add("app", "value");
-		properties.add("app.name", "nested");
-		assertThatIllegalStateException().isThrownBy(() -> writeYaml(properties))
-			.withMessage("Property 'app' can't be a value and a nested map at the same time");
-	}
-
-	@Test
-	void writeYamlFailsOnNestedMapAndValueForSameKey() {
-		ApplicationProperties properties = new ApplicationProperties();
-		properties.add("app.name", "nested");
-		properties.add("app", "value");
-		assertThatIllegalStateException().isThrownBy(() -> writeYaml(properties))
-			.withMessage("Property 'app' can't be a value and a nested map at the same time");
-	}
-
-	private String writeProperties(ApplicationProperties properties) {
-		StringWriter stringWriter = new StringWriter();
-		try (PrintWriter writer = new PrintWriter(stringWriter)) {
-			properties.writeProperties(writer);
-		}
-		return stringWriter.toString();
-	}
-
-	private String writeYaml(ApplicationProperties properties) {
-		StringWriter stringWriter = new StringWriter();
-		try (PrintWriter writer = new PrintWriter(stringWriter)) {
-			properties.writeYaml(writer);
-		}
-		return stringWriter.toString();
+		assertThat(properties.files(SourceSet.TEST)).isEmpty();
 	}
 
 }

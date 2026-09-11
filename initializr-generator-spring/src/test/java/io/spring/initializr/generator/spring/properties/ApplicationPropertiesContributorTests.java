@@ -18,17 +18,21 @@ package io.spring.initializr.generator.spring.properties;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.Collections;
+import java.util.List;
 
 import io.spring.initializr.generator.buildsystem.BuildSystem;
-import io.spring.initializr.generator.buildsystem.maven.MavenBuildSystem;
+import io.spring.initializr.generator.buildsystem.SourceSet;
 import io.spring.initializr.generator.language.Language;
 import io.spring.initializr.generator.language.SourceStructure;
 import io.spring.initializr.generator.language.java.JavaLanguage;
 import io.spring.initializr.generator.project.MutableProjectDescription;
-import io.spring.initializr.generator.project.ProjectDescription;
 import io.spring.initializr.generator.test.project.ProjectStructure;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -45,70 +49,86 @@ class ApplicationPropertiesContributorTests {
 	Path directory;
 
 	@Test
-	void applicationConfigurationWithDefaultSettings() throws IOException {
-		new ApplicationPropertiesContributor(new ApplicationProperties(), mavenProjectDescription())
+	void shouldWriteEmptyMainFileByDefault() throws IOException {
+		new ApplicationPropertiesContributor(new ApplicationProperties(), TestProjectDescriptions.mavenJava())
+			.contribute(this.directory);
+		ProjectStructure project = new ProjectStructure(this.directory);
+		assertThat(project).filePaths().containsOnly("src/main/resources/application.properties");
+		assertThat(project).textFile("src/main/resources/application.properties").isEmpty();
+	}
+
+	@Test
+	void shouldWriteAllValueTypes() throws IOException {
+		ApplicationProperties properties = new ApplicationProperties();
+		properties.add("string", "value");
+		properties.add("long", 1L);
+		properties.add("double", 0.1);
+		properties.add("boolean", false);
+		properties.add("collection", List.of("value1", "value2"));
+		properties.add("empty-collection", Collections.emptyList());
+		new ApplicationPropertiesContributor(properties, TestProjectDescriptions.mavenJava())
 			.contribute(this.directory);
 		assertThat(new ProjectStructure(this.directory)).textFile("src/main/resources/application.properties")
-			.isEmpty();
-	}
-
-	@Test
-	void shouldAddStringProperty() throws IOException {
-		ApplicationProperties properties = new ApplicationProperties();
-		properties.add("spring.application.name", "test");
-		ApplicationPropertiesContributor contributor = new ApplicationPropertiesContributor(properties,
-				mavenProjectDescription());
-		contributor.contribute(this.directory);
-		assertThat(new ProjectStructure(this.directory)).textFile("src/main/resources/application.properties")
 			.lines()
-			.contains("spring.application.name=test");
+			.containsExactly("string=value", "long=1", "double=0.1", "boolean=false", "collection=value1,value2",
+					"empty-collection=");
 	}
 
-	@Test
-	void shouldWriteTestSourceSetPropertiesToTestResources() throws IOException {
+	@ParameterizedTest
+	@CsvSource(textBlock = """
+			MAIN, , src/main/resources/application.properties
+			MAIN, dev, src/main/resources/application-dev.properties
+			TEST, , src/test/resources/application.properties
+			TEST, integration, src/test/resources/application-integration.properties
+			""")
+	void shouldWriteProfileToMatchingFile(SourceSet sourceSet, @Nullable String profile, String expectedFile)
+			throws IOException {
 		ApplicationProperties properties = new ApplicationProperties();
-		properties.section(SourceSet.TEST, null).add("spring.datasource.url", "jdbc:h2:mem:test");
-		new ApplicationPropertiesContributor(properties, mavenProjectDescription()).contribute(this.directory);
-		assertThat(new ProjectStructure(this.directory)).textFile("src/test/resources/application.properties")
+		file(properties, sourceSet, profile).add("spring.application.name", "test");
+		new ApplicationPropertiesContributor(properties, TestProjectDescriptions.mavenJava())
+			.contribute(this.directory);
+		assertThat(new ProjectStructure(this.directory)).textFile(expectedFile)
 			.lines()
-			.contains("spring.datasource.url=jdbc:h2:mem:test");
+			.containsExactly("spring.application.name=test");
 	}
 
 	@Test
-	void shouldWriteProfilePropertiesToProfileSpecificFile() throws IOException {
+	void shouldKeepProfilesWithSameKeyIsolated() throws IOException {
 		ApplicationProperties properties = new ApplicationProperties();
-		properties.section(SourceSet.MAIN, "dev").add("logging.level.root", "DEBUG");
-		new ApplicationPropertiesContributor(properties, mavenProjectDescription()).contribute(this.directory);
-		assertThat(new ProjectStructure(this.directory)).textFile("src/main/resources/application-dev.properties")
+		properties.add("spring.application.name", "main");
+		properties.profile("dev").add("spring.application.name", "dev");
+		new ApplicationPropertiesContributor(properties, TestProjectDescriptions.mavenJava())
+			.contribute(this.directory);
+		ProjectStructure project = new ProjectStructure(this.directory);
+		assertThat(project).textFile("src/main/resources/application.properties")
 			.lines()
-			.contains("logging.level.root=DEBUG");
-	}
-
-	@Test
-	void shouldWriteTestSourceSetProfileProperties() throws IOException {
-		ApplicationProperties properties = new ApplicationProperties();
-		properties.section(SourceSet.TEST, "integration").add("spring.application.name", "it");
-		new ApplicationPropertiesContributor(properties, mavenProjectDescription()).contribute(this.directory);
-		assertThat(new ProjectStructure(this.directory))
-			.textFile("src/test/resources/application-integration.properties")
+			.containsExactly("spring.application.name=main");
+		assertThat(project).textFile("src/main/resources/application-dev.properties")
 			.lines()
-			.contains("spring.application.name=it");
+			.containsExactly("spring.application.name=dev");
 	}
 
-	@Test
-	void shouldNotWriteFileForEmptySection() throws IOException {
+	@ParameterizedTest
+	@CsvSource(textBlock = """
+			TEST,
+			MAIN, dev
+			TEST, integration
+			""")
+	void shouldNotWriteFileWithoutProperties(SourceSet sourceSet, @Nullable String profile) throws IOException {
 		ApplicationProperties properties = new ApplicationProperties();
-		properties.section(SourceSet.TEST, null);
-		new ApplicationPropertiesContributor(properties, mavenProjectDescription()).contribute(this.directory);
+		file(properties, sourceSet, profile);
+		new ApplicationPropertiesContributor(properties, TestProjectDescriptions.mavenJava())
+			.contribute(this.directory);
 		assertThat(new ProjectStructure(this.directory)).filePaths()
 			.containsOnly("src/main/resources/application.properties");
 	}
 
 	@Test
-	void shouldAlwaysWriteMainDefaultFileEvenWhenOnlySectionsHaveProperties() throws IOException {
+	void shouldAlwaysWriteMainDefaultFileEvenWhenOnlyProfilesHaveProperties() throws IOException {
 		ApplicationProperties properties = new ApplicationProperties();
-		properties.section(SourceSet.MAIN, "dev").add("test", "value");
-		new ApplicationPropertiesContributor(properties, mavenProjectDescription()).contribute(this.directory);
+		properties.profile("dev").add("test", "value");
+		new ApplicationPropertiesContributor(properties, TestProjectDescriptions.mavenJava())
+			.contribute(this.directory);
 		assertThat(new ProjectStructure(this.directory)).filePaths()
 			.containsOnly("src/main/resources/application.properties", "src/main/resources/application-dev.properties");
 		assertThat(new ProjectStructure(this.directory)).textFile("src/main/resources/application.properties")
@@ -119,21 +139,26 @@ class ApplicationPropertiesContributorTests {
 	void shouldResolvePathsThroughBuildSystem() throws IOException {
 		ApplicationProperties properties = new ApplicationProperties();
 		properties.add("spring.application.name", "main");
-		properties.section(SourceSet.TEST).add("spring.application.name", "test");
+		properties.file(SourceSet.TEST).add("spring.application.name", "test");
 		MutableProjectDescription description = new MutableProjectDescription();
 		description.setBuildSystem(new CustomLayoutBuildSystem());
 		description.setLanguage(new JavaLanguage());
 		new ApplicationPropertiesContributor(properties, description).contribute(this.directory);
-		assertThat(new ProjectStructure(this.directory)).filePaths()
+		ProjectStructure project = new ProjectStructure(this.directory);
+		assertThat(project).filePaths()
 			.containsOnly("custom-main/resources/application.properties",
 					"custom-test/resources/application.properties");
+		assertThat(project).textFile("custom-main/resources/application.properties")
+			.lines()
+			.containsExactly("spring.application.name=main");
+		assertThat(project).textFile("custom-test/resources/application.properties")
+			.lines()
+			.containsExactly("spring.application.name=test");
 	}
 
-	private ProjectDescription mavenProjectDescription() {
-		MutableProjectDescription description = new MutableProjectDescription();
-		description.setBuildSystem(new MavenBuildSystem());
-		description.setLanguage(new JavaLanguage());
-		return description;
+	private static ApplicationPropertiesFile file(ApplicationProperties properties, SourceSet sourceSet,
+			@Nullable String profile) {
+		return (profile != null) ? properties.file(sourceSet, profile) : properties.file(sourceSet);
 	}
 
 	/**

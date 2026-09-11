@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package io.spring.initializr.generator.spring.properties;
+package io.spring.initializr.generator.buildsystem;
 
 /**
  * A source set of a generated project, following the standard directory layout of the

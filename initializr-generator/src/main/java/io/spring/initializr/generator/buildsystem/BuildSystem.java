@@ -29,6 +29,7 @@ import org.springframework.core.io.support.SpringFactoriesLoader;
  * A build system that can be used by a generated project.
  *
  * @author Andy Wilkinson
+ * @author Moritz Halbritter
  */
 public interface BuildSystem {
 
@@ -65,6 +66,20 @@ public interface BuildSystem {
 	 */
 	default SourceStructure getTestSource(Path projectRoot, Language language) {
 		return new SourceStructure(projectRoot.resolve("src/test/"), language);
+	}
+
+	/**
+	 * Returns a {@link SourceStructure} for the sources of the given source set.
+	 * @param projectRoot the root of the project structure
+	 * @param language the language of the project
+	 * @param sourceSet the source set
+	 * @return a {@link SourceStructure} for the assets of the source set
+	 */
+	default SourceStructure getSource(Path projectRoot, Language language, SourceSet sourceSet) {
+		return switch (sourceSet) {
+			case MAIN -> getMainSource(projectRoot, language);
+			case TEST -> getTestSource(projectRoot, language);
+		};
 	}
 
 	static BuildSystem forId(String id) {
