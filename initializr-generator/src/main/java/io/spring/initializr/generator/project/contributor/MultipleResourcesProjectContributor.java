@@ -66,7 +66,10 @@ public class MultipleResourcesProjectContributor implements ProjectContributor {
 				String filename = extractFileName(root.getURI(), resource.getURI());
 				Path output = projectRoot.resolve(filename);
 				if (!Files.exists(output)) {
-					Files.createDirectories(output.getParent());
+					Path parent = output.getParent();
+					if (parent != null) {
+						Files.createDirectories(parent);
+					}
 					Files.createFile(output);
 				}
 				FileCopyUtils.copy(resource.getInputStream(), Files.newOutputStream(output));

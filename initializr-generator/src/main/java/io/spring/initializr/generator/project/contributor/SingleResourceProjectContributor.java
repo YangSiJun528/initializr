@@ -57,7 +57,10 @@ public class SingleResourceProjectContributor implements ProjectContributor {
 	public void contribute(Path projectRoot) throws IOException {
 		Path output = projectRoot.resolve(this.relativePath);
 		if (!Files.exists(output)) {
-			Files.createDirectories(output.getParent());
+			Path parent = output.getParent();
+			if (parent != null) {
+				Files.createDirectories(parent);
+			}
 			Files.createFile(output);
 		}
 		Resource resource = this.resolver.getResource(this.resourcePattern);
