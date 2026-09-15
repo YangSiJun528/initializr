@@ -69,6 +69,12 @@ class CodeBlockTests {
 	}
 
 	@Test
+	void codeBlockWithNullStringPlaceholder() {
+		CodeBlock code = CodeBlock.of("return $S", (Object) null);
+		assertThat(writeJava(code)).isEqualTo("return null");
+	}
+
+	@Test
 	void codeBlockWithStringPlaceholderAndDoubleQuote() {
 		CodeBlock code = CodeBlock.of("return myUtil.truncate($S)", "va\"lue");
 		assertThat(writeJava(code)).isEqualTo("return myUtil.truncate(\"va\\\"lue\")");
@@ -84,6 +90,12 @@ class CodeBlockTests {
 	void codeBlockWithLiteralPlaceholder() {
 		CodeBlock code = CodeBlock.of("return $L.truncate(myString)", "myUtil");
 		assertThat(writeJava(code)).isEqualTo("return myUtil.truncate(myString)");
+	}
+
+	@Test
+	void codeBlockWithNullLiteralPlaceholder() {
+		CodeBlock code = CodeBlock.of("return $L", (Object) null);
+		assertThat(writeJava(code)).isEqualTo("return null");
 	}
 
 	@Test
