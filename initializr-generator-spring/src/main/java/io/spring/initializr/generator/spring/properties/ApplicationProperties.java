@@ -154,9 +154,17 @@ public class ApplicationProperties {
 		Map<String, Object> current = map;
 		for (int i = 0; i < path.length - 1; i++) {
 			String segment = path[i];
-			current = (Map<String, Object>) current.computeIfAbsent(segment, (k) -> new LinkedHashMap<>());
+			Object child = current.computeIfAbsent(segment, (k) -> new LinkedHashMap<>());
+			Assert.state(child instanceof Map, () -> conflict(segment));
+			current = (Map<String, Object>) child;
 		}
-		current.put(path[path.length - 1], value);
+		String leaf = path[path.length - 1];
+		Assert.state(!(current.get(leaf) instanceof Map), () -> conflict(leaf));
+		current.put(leaf, value);
+	}
+
+	private static String conflict(String key) {
+		return "Property '%s' can't be a value and a nested map at the same time".formatted(key);
 	}
 
 	private static void writeYamlRecursive(Map<String, Object> map, PrintWriter writer, int indent) {

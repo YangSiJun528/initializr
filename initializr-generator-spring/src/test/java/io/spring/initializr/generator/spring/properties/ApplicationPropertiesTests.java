@@ -210,6 +210,24 @@ class ApplicationPropertiesTests {
 				""");
 	}
 
+	@Test
+	void writeYamlFailsOnValueAndNestedMapForSameKey() {
+		ApplicationProperties properties = new ApplicationProperties();
+		properties.add("app", "value");
+		properties.add("app.name", "nested");
+		assertThatIllegalStateException().isThrownBy(() -> writeYaml(properties))
+			.withMessage("Property 'app' can't be a value and a nested map at the same time");
+	}
+
+	@Test
+	void writeYamlFailsOnNestedMapAndValueForSameKey() {
+		ApplicationProperties properties = new ApplicationProperties();
+		properties.add("app.name", "nested");
+		properties.add("app", "value");
+		assertThatIllegalStateException().isThrownBy(() -> writeYaml(properties))
+			.withMessage("Property 'app' can't be a value and a nested map at the same time");
+	}
+
 	private String writeProperties(ApplicationProperties properties) {
 		StringWriter stringWriter = new StringWriter();
 		try (PrintWriter writer = new PrintWriter(stringWriter)) {
