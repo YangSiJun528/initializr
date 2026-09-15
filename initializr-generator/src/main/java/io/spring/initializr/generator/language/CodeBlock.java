@@ -18,6 +18,7 @@ package io.spring.initializr.generator.language;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collector;
 import java.util.stream.StreamSupport;
@@ -70,7 +71,7 @@ public final class CodeBlock {
 
 	private CodeBlock(Builder builder) {
 		this.parts = List.copyOf(builder.parts);
-		this.args = List.copyOf(builder.args);
+		this.args = Collections.unmodifiableList(new ArrayList<>(builder.args));
 		this.imports = List.copyOf(builder.imports);
 	}
 
@@ -143,7 +144,7 @@ public final class CodeBlock {
 	 * @return a new instance
 	 * @see #builder()
 	 */
-	public static CodeBlock of(String format, Object... args) {
+	public static CodeBlock of(String format, @Nullable Object... args) {
 		return new Builder().add(format, args).build();
 	}
 
@@ -155,7 +156,7 @@ public final class CodeBlock {
 	 * @return a new instance
 	 * @see #builder()
 	 */
-	public static CodeBlock ofStatement(String format, Object... args) {
+	public static CodeBlock ofStatement(String format, @Nullable Object... args) {
 		return new Builder().addStatement(format, args).build();
 	}
 
@@ -222,7 +223,7 @@ public final class CodeBlock {
 		 * @param args the arguments, if any
 		 * @return this for method chaining
 		 */
-		public Builder add(String format, Object... args) {
+		public Builder add(String format, @Nullable Object... args) {
 			int relativeParameterCount = 0;
 
 			for (int p = 0; p < format.length();) {
@@ -263,7 +264,7 @@ public final class CodeBlock {
 			return c == '$' || c == ']';
 		}
 
-		private void addArgument(String format, char c, Object arg) {
+		private void addArgument(String format, char c, @Nullable Object arg) {
 			switch (c) {
 				case 'L' -> this.args.add(arg(arg));
 				case 'S' -> this.args.add(argToString(arg));
@@ -273,7 +274,7 @@ public final class CodeBlock {
 			}
 		}
 
-		private Object arg(Object arg) {
+		private @Nullable Object arg(@Nullable Object arg) {
 			if (arg instanceof CodeBlock code) {
 				this.imports.addAll(code.getImports());
 			}
@@ -284,7 +285,7 @@ public final class CodeBlock {
 			return (arg != null) ? String.valueOf(arg) : null;
 		}
 
-		private String argToType(Object arg) {
+		private String argToType(@Nullable Object arg) {
 			if (arg instanceof Class<?> type) {
 				this.imports.add(type.getName());
 				return type.getSimpleName();
@@ -318,7 +319,7 @@ public final class CodeBlock {
 		 * @param args the arguments, if any
 		 * @return this for method chaining
 		 */
-		public Builder addStatement(String format, Object... args) {
+		public Builder addStatement(String format, @Nullable Object... args) {
 			add(format, args);
 			this.parts.add("$]");
 			return this;
