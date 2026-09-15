@@ -22,6 +22,7 @@ import io.spring.initializr.generator.configuration.format.ConfigurationFileForm
  * Properties {@link ConfigurationFileFormat}.
  *
  * @author Sijun Yang
+ * @author Moritz Halbritter
  */
 public final class PropertiesFormat implements ConfigurationFileFormat {
 
@@ -33,6 +34,11 @@ public final class PropertiesFormat implements ConfigurationFileFormat {
 	@Override
 	public String id() {
 		return ID;
+	}
+
+	@Override
+	public String fileExtension() {
+		return ".properties";
 	}
 
 	@Override

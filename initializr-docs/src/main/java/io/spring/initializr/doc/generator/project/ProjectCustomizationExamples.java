@@ -16,6 +16,7 @@
 
 package io.spring.initializr.doc.generator.project;
 
+import io.spring.initializr.generator.buildsystem.SourceSet;
 import io.spring.initializr.generator.buildsystem.gradle.GradleBuild;
 import io.spring.initializr.generator.buildsystem.gradle.GradleBuildSystem;
 import io.spring.initializr.generator.condition.ConditionalOnBuildSystem;
@@ -25,6 +26,7 @@ import io.spring.initializr.generator.packaging.war.WarPackaging;
 import io.spring.initializr.generator.project.ProjectDescriptionCustomizer;
 import io.spring.initializr.generator.project.ProjectDescriptionField;
 import io.spring.initializr.generator.spring.build.BuildCustomizer;
+import io.spring.initializr.generator.spring.properties.ApplicationPropertiesCustomizer;
 
 import org.springframework.context.annotation.Bean;
 
@@ -32,6 +34,8 @@ import org.springframework.context.annotation.Bean;
  * Examples of customizers.
  *
  * @author Stephane Nicoll
+ * @author Moritz Halbritter
+ * @author Denis A. Altoé Falqueto
  */
 public class ProjectCustomizationExamples {
 
@@ -68,5 +72,19 @@ public class ProjectCustomizationExamples {
 		}
 	}
 	// end::jvm-version-change-reason[]
+
+	// tag::application-properties-customizer[]
+	@Bean
+	public ApplicationPropertiesCustomizer applicationPropertiesCustomizer() {
+		return (properties) -> {
+			// src/main/resources/application.properties (or .yaml)
+			properties.add("spring.application.name", "acme");
+			// src/test/resources/application.properties (or .yaml)
+			properties.file(SourceSet.TEST).add("spring.datasource.url", "jdbc:h2:mem:acme");
+			// src/main/resources/application-dev.properties (or .yaml)
+			properties.profile("dev").add("logging.level.root", "DEBUG");
+		};
+	}
+	// end::application-properties-customizer[]
 
 }

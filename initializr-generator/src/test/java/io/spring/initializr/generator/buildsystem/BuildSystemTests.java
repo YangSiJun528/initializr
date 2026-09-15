@@ -33,6 +33,7 @@ import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
  * Tests for {@link BuildSystem}.
  *
  * @author Stephane Nicoll
+ * @author Moritz Halbritter
  */
 class BuildSystemTests {
 
@@ -64,6 +65,22 @@ class BuildSystemTests {
 		SourceStructure testCodeStructure = BuildSystem.forId("gradle").getTestSource(directory, new KotlinLanguage());
 		assertThat(testCodeStructure.getRootDirectory()).isEqualTo(directory.resolve("src/test"));
 		assertThat(testCodeStructure.getSourcesDirectory()).isEqualTo(directory.resolve("src/test/kotlin"));
+	}
+
+	@Test
+	void sourceOfMainSourceSet(@TempDir Path directory) {
+		SourceStructure structure = BuildSystem.forId("gradle")
+			.getSource(directory, new JavaLanguage(), SourceSet.MAIN);
+		assertThat(structure.getRootDirectory()).isEqualTo(directory.resolve("src/main"));
+		assertThat(structure.getSourcesDirectory()).isEqualTo(directory.resolve("src/main/java"));
+	}
+
+	@Test
+	void sourceOfTestSourceSet(@TempDir Path directory) {
+		SourceStructure structure = BuildSystem.forId("gradle")
+			.getSource(directory, new KotlinLanguage(), SourceSet.TEST);
+		assertThat(structure.getRootDirectory()).isEqualTo(directory.resolve("src/test"));
+		assertThat(structure.getSourcesDirectory()).isEqualTo(directory.resolve("src/test/kotlin"));
 	}
 
 	@Test

@@ -22,6 +22,13 @@ import org.jspecify.annotations.Nullable;
 
 import org.springframework.core.io.support.SpringFactoriesLoader;
 
+/**
+ * The format of an application's configuration files, for example {@code properties} or
+ * {@code yaml}.
+ *
+ * @author Sijun Yang
+ * @author Moritz Halbritter
+ */
 public interface ConfigurationFileFormat {
 
 	/**
@@ -29,6 +36,13 @@ public interface ConfigurationFileFormat {
 	 * @return the id
 	 */
 	String id();
+
+	/**
+	 * Return the extension of the configuration files of this format, including the
+	 * leading dot, for example {@code .yaml}.
+	 * @return the file extension
+	 */
+	String fileExtension();
 
 	/**
 	 * Creates the configuration file format for the given id.

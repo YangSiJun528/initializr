@@ -14,36 +14,24 @@
  * limitations under the License.
  */
 
-package io.spring.initializr.generator.configuration.format.yaml;
-
-import io.spring.initializr.generator.configuration.format.ConfigurationFileFormat;
+package io.spring.initializr.generator.buildsystem;
 
 /**
- * YAML {@link ConfigurationFileFormat}.
+ * A source set of a generated project, following the standard directory layout of the
+ * supported build systems (for example {@code src/main} and {@code src/test}).
  *
- * @author Sijun Yang
- * @author Moritz Halbritter
+ * @author Denis A. Altoé Falqueto
  */
-public final class YamlFormat implements ConfigurationFileFormat {
+public enum SourceSet {
 
 	/**
-	 * YAML {@link ConfigurationFileFormat} identifier.
+	 * The main source set, packaged with the application.
 	 */
-	public static final String ID = "yaml";
+	MAIN,
 
-	@Override
-	public String id() {
-		return ID;
-	}
-
-	@Override
-	public String fileExtension() {
-		return ".yaml";
-	}
-
-	@Override
-	public String toString() {
-		return id();
-	}
+	/**
+	 * The test source set, only available to tests.
+	 */
+	TEST
 
 }

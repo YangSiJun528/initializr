@@ -16,42 +16,44 @@
 
 package io.spring.initializr.generator.spring.properties;
 
-import java.io.IOException;
 import java.io.PrintWriter;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
+import java.util.Collection;
+import java.util.Map;
 
+import io.spring.initializr.generator.configuration.format.properties.PropertiesFormat;
+import io.spring.initializr.generator.project.ProjectDescription;
 import io.spring.initializr.generator.project.contributor.ProjectContributor;
 
+import org.springframework.util.StringUtils;
+
 /**
- * A {@link ProjectContributor} that contributes a {@code application.properties} file to
- * a project.
+ * A {@link ProjectContributor} that contributes
+ * {@code application[-{profile}].properties} files to a project, one per source set and
+ * Spring profile that has properties. The {@code application.properties} of the main
+ * source set is contributed even when empty.
  *
  * @author Stephane Nicoll
  * @author Moritz Halbritter
  */
-public class ApplicationPropertiesContributor implements ProjectContributor {
+public class ApplicationPropertiesContributor extends AbstractApplicationPropertiesContributor {
 
-	private static final String FILE = "src/main/resources/application.properties";
-
-	private final ApplicationProperties properties;
-
-	public ApplicationPropertiesContributor(ApplicationProperties properties) {
-		this.properties = properties;
+	/**
+	 * Creates a new instance.
+	 * @param properties the application properties to contribute
+	 * @param description the description of the project, used to resolve the source
+	 * structures
+	 */
+	public ApplicationPropertiesContributor(ApplicationProperties properties, ProjectDescription description) {
+		super(properties, description, new PropertiesFormat());
 	}
 
 	@Override
-	public void contribute(Path projectRoot) throws IOException {
-		Path output = projectRoot.resolve(FILE);
-		if (!Files.exists(output)) {
-			Files.createDirectories(output.getParent());
-			Files.createFile(output);
-		}
-		try (PrintWriter writer = new PrintWriter(Files.newOutputStream(output, StandardOpenOption.APPEND), false,
-				StandardCharsets.UTF_8)) {
-			this.properties.writeProperties(writer);
+	protected void writeProperties(Map<String, Object> properties, PrintWriter writer) {
+		for (Map.Entry<String, Object> entry : properties.entrySet()) {
+			// Collections are written as comma delimited values, for example 'a,b'
+			Object value = (entry.getValue() instanceof Collection<?> collection)
+					? StringUtils.collectionToCommaDelimitedString(collection) : entry.getValue();
+			writer.printf("%s=%s%n", entry.getKey(), value);
 		}
 	}
 
