@@ -94,7 +94,10 @@ abstract class AbstractApplicationPropertiesContributor implements ProjectContri
 			throws IOException {
 		Path output = resolveOutputFile(sourceStructure, profile);
 		if (!Files.exists(output)) {
-			Files.createDirectories(output.getParent());
+			Path parent = output.getParent();
+			if (parent != null) {
+				Files.createDirectories(parent);
+			}
 			Files.createFile(output);
 		}
 		try (PrintWriter writer = new PrintWriter(Files.newOutputStream(output, StandardOpenOption.APPEND), false,

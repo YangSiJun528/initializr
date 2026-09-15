@@ -107,7 +107,10 @@ public class JavaSourceCodeWriter implements SourceCodeWriter<JavaSourceCode> {
 
 	private void writeTo(SourceStructure structure, JavaCompilationUnit compilationUnit) throws IOException {
 		Path output = structure.createSourceFile(compilationUnit.getPackageName(), compilationUnit.getName());
-		Files.createDirectories(output.getParent());
+		Path parent = output.getParent();
+		if (parent != null) {
+			Files.createDirectories(parent);
+		}
 		try (IndentingWriter writer = this.indentingWriterFactory.createIndentingWriter("java",
 				Files.newBufferedWriter(output))) {
 			writer.println("package " + compilationUnit.getPackageName() + ";");
