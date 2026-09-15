@@ -18,7 +18,7 @@ package io.spring.initializr.generator.spring.properties;
 
 import java.io.PrintWriter;
 import java.util.Collection;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 import org.jspecify.annotations.Nullable;
@@ -36,7 +36,7 @@ public class ApplicationProperties {
 
 	private static final String YAML_SPACE = "  ";
 
-	private final Map<String, Object> properties = new HashMap<>();
+	private final Map<String, Object> properties = new LinkedHashMap<>();
 
 	/**
 	 * Adds a new property.
@@ -137,7 +137,7 @@ public class ApplicationProperties {
 	}
 
 	private static Map<String, Object> flattenToNestedMap(Map<String, Object> flatMap) {
-		Map<String, Object> nested = new HashMap<>();
+		Map<String, Object> nested = new LinkedHashMap<>();
 		flatMap.forEach((key, value) -> {
 			String[] path = parseKeyPath(key);
 			insertValueAtPath(nested, path, value);
@@ -154,7 +154,7 @@ public class ApplicationProperties {
 		Map<String, Object> current = map;
 		for (int i = 0; i < path.length - 1; i++) {
 			String segment = path[i];
-			current = (Map<String, Object>) current.computeIfAbsent(segment, (k) -> new HashMap<>());
+			current = (Map<String, Object>) current.computeIfAbsent(segment, (k) -> new LinkedHashMap<>());
 		}
 		current.put(path[path.length - 1], value);
 	}

@@ -172,12 +172,12 @@ class ApplicationPropertiesTests {
 		properties.add("db.connection.timeout", 30);
 		String written = writeYaml(properties);
 		assertThat(written).isEqualToNormalizingNewlines("""
+				name: testapp
+				port: 8080
 				app:
+				  version: 1.0
 				  config:
 				    debug: true
-				  version: 1.0
-				port: 8080
-				name: testapp
 				db:
 				  host: localhost
 				  connection:
