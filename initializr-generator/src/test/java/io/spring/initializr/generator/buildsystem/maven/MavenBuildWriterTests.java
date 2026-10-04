@@ -18,6 +18,7 @@ package io.spring.initializr.generator.buildsystem.maven;
 
 import java.io.StringWriter;
 import java.util.Comparator;
+import java.util.List;
 import java.util.function.Consumer;
 
 import io.spring.initializr.generator.buildsystem.BillOfMaterials;
@@ -48,132 +49,67 @@ import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException
 class MavenBuildWriterTests {
 
 	@Test
-	void commonContentPlacesCommentsAroundRepeatedSettingsAndOnTheirClosingLine() {
+	void pluginContentSupportsCommentsRawXmlAndNestedCallbacksWithoutChangingSettings() {
 		MavenBuild build = new MavenBuild();
-		build.plugins().add("com.example", "test-plugin", (plugin) -> plugin.configuration((configuration) -> {
-			configuration.configure("jvmFlags", (flags) -> {
-				flags.add("jvmFlag", "-Dfile.encoding=UTF-8");
-				flags.add("jvmFlag", "-XX:MaxRAMPercentage=75.0");
-				flags.content().before("jvmFlag", 1).comment("Container memory limit");
-				flags.content().inlineComment("jvmFlag", 1, "https://example.com/memory");
-				flags.content().after("jvmFlag", 1).raw("<custom/>");
-			});
-			configuration.content().first().comment("Configuration reason");
-			configuration.content().inlineComment("jvmFlags", "JVM flags");
-			configuration.content().last().write((writer) -> {
-				writer.println("<generated>");
-				writer.indented(() -> writer.println("<enabled>true</enabled>"));
-				writer.println("</generated>");
+		build.plugins().add("com.example", "custom", (plugin) -> plugin.configuration((configuration) -> {
+			configuration.add("memory", "-Xmx256m");
+			configuration.content().before("memory").comment("Memory limit: https://example.com/memory");
+			configuration.content().after("memory").raw("<expression><![CDATA[a < b && c > d]]></expression>");
+			configuration.add("options", (nested) -> {
+				nested.add("name", "A & B");
+				nested.content().last().write((writer) -> writer.println("<extra>true</extra>"));
 			});
 		}));
 		String written = writePom(new MavenBuildWriter(), build);
-		assertThat(written).contains(
-				"<jvmFlag>-XX:MaxRAMPercentage=75.0</jvmFlag> <!-- https://example.com/memory -->\n",
-				"</jvmFlags> <!-- JVM flags -->\n");
-		NodeAssert flags = new NodeAssert(written).nodeAtPath("/project/build/plugins/plugin/configuration/jvmFlags");
-		assertThat(flags).nodesAtPath("node()[not(self::text())]")
-			.extracting(Node::getNodeName)
-			.containsExactly("jvmFlag", "#comment", "jvmFlag", "#comment", "custom");
-		assertThat(flags).nodeAtPath("jvmFlag[1]/following-sibling::node()[1]")
-			.matches((node) -> node.getNodeType() == Node.TEXT_NODE);
-		assertThat(new NodeAssert(written)).textAtPath("/project/build/plugins/plugin/configuration/generated/enabled")
-			.isEqualTo("true");
-	}
-
-	@Test
-	void settingsCanBeMovedWithoutLosingTheirCommentsOrNestedCustomization() {
-		MavenBuild build = new MavenBuild();
-		build.plugins().add("com.example", "test-plugin", (plugin) -> {
-			plugin.configuration((configuration) -> {
-				configuration.add("first", "1");
-				configuration.configure("nested", (nested) -> nested.add("value", "2"));
-				configuration.content().before("nested").comment("Nested reason");
-				configuration.content().moveBefore("nested", "first");
-			});
-			plugin.configuration((configuration) -> configuration.configure("nested",
-					(nested) -> nested.addRaw("license", "<![CDATA[first\nsecond]]>")));
-		});
-		String written = writePom(new MavenBuildWriter(), build);
-		assertThat(written).contains("<license><![CDATA[first\nsecond]]></license>");
+		assertThat(written.indexOf("<!-- Memory limit:")).isLessThan(written.indexOf("<memory>"));
+		assertThat(written.indexOf("</memory>")).isLessThan(written.indexOf("<expression>"));
 		NodeAssert configuration = new NodeAssert(written).nodeAtPath("/project/build/plugins/plugin/configuration");
-		assertThat(configuration).nodesAtPath("node()[not(self::text())]")
-			.extracting(Node::getNodeName)
-			.containsExactly("#comment", "nested", "first");
-		assertThat(configuration).textAtPath("nested/license").isEqualTo("first\nsecond");
+		assertThat(configuration).textAtPath("memory").isEqualTo("-Xmx256m");
+		assertThat(configuration).textAtPath("expression").isEqualTo("a < b && c > d");
+		assertThat(configuration).textAtPath("options/name").isEqualTo("A & B");
+		assertThat(configuration).textAtPath("options/extra").isEqualTo("true");
+		MavenPlugin.Configuration model = build.plugins().values().findFirst().orElseThrow().getConfiguration();
+		assertThat(model).isNotNull();
+		assertThat(model.getSettings()).extracting(MavenPlugin.Setting::getName).containsExactly("memory", "options");
+		assertThat(model.getSettings().get(1).getValue()).isInstanceOf(List.class);
 	}
 
 	@Test
-	void invalidInlineXmlCommentsAreRejected() {
-		MavenBuild build = new MavenBuild();
-		build.plugins().add("com.example", "test-plugin", (plugin) -> plugin.configuration((configuration) -> {
-			configuration.add("enabled", "true");
-			configuration.content().inlineComment("enabled", "invalid -- comment");
-		}));
-		assertThatIllegalArgumentException().isThrownBy(() -> writePom(new MavenBuildWriter(), build));
-	}
-
-	@Test
-	void emptyNestedConfigurationRemainsOmitted() {
-		MavenBuild build = new MavenBuild();
-		build.plugins().add("com.example", "test-plugin", (plugin) -> plugin.configuration((configuration) -> {
-			configuration.configure("empty", (nested) -> {
-			});
-			configuration.add("enabled", "true");
-		}));
-		assertThat(writePom(new MavenBuildWriter(), build)).contains("<enabled>true</enabled>")
-			.doesNotContain("<empty");
-	}
-
-	@Test
-	void pluginConfigurationPreservesCommentsRawXmlAndText() {
-		MavenBuild build = new MavenBuild();
-		build.plugins().add("com.example", "test-plugin", (plugin) -> plugin.configuration((configuration) -> {
-			configuration.add("before", "<text> & \"quoted\"");
-			configuration.comment("Reason <https://example.com> & reference-");
-			configuration.configure("nested", (nested) -> {
-				nested.comment("Nested reason");
-				nested.addRaw("content", "<![CDATA[<license> & copyright]]>");
-				nested.raw("<custom enabled=\"true\"><![CDATA[first\nsecond]]></custom>");
-			});
-			configuration.configure("nested", (nested) -> nested.add("after", "value"));
-		}));
-		String written = writePom(new MavenBuildWriter(), build);
-		assertThat(written).contains("<before>&lt;text&gt; &amp; &quot;quoted&quot;</before>");
-		assertThat(written).contains("<content><![CDATA[<license> & copyright]]></content>");
-		NodeAssert configuration = new NodeAssert(written).nodeAtPath("/project/build/plugins/plugin/configuration");
-		assertThat(configuration).textAtPath("before").isEqualTo("<text> & \"quoted\"");
-		assertThat(configuration).nodesAtPath("node()[not(self::text())]")
-			.extracting(Node::getNodeType)
-			.containsExactly(Node.ELEMENT_NODE, Node.COMMENT_NODE, Node.ELEMENT_NODE);
-		assertThat(configuration).nodeAtPath("comment()")
-			.matches((node) -> node.getTextContent().equals(" Reason <https://example.com> & reference- "));
-		assertThat(configuration).textAtPath("nested/content").isEqualTo("<license> & copyright");
-		assertThat(configuration).textAtPath("nested/custom").isEqualTo("first\nsecond");
-		assertThat(configuration).nodesAtPath("nested/node()[not(self::text())]")
-			.extracting(Node::getNodeName)
-			.containsExactly("#comment", "content", "custom", "after");
-	}
-
-	@Test
-	void executionConfigurationWithOnlyCommentsIsWritten() {
+	void contentOnlyConfigurationAndNestedBlocksAreWrittenForExecutions() {
 		MavenBuild build = new MavenBuild();
 		build.plugins()
-			.add("com.example", "test-plugin", (plugin) -> plugin.execution("test", (execution) -> execution
-				.configuration((configuration) -> configuration.comment("Execution reason"))));
+			.add("com.example", "custom",
+					(plugin) -> plugin.execution("run", (execution) -> execution.configuration((configuration) -> {
+						configuration.content().first().comment("Execution reason");
+						configuration.add("options",
+								(nested) -> nested.content().last().raw("<enabled>true</enabled>"));
+					})));
 		generatePom(build,
 				(pom) -> assertThat(pom)
-					.nodeAtPath("/project/build/plugins/plugin/executions/execution/configuration/comment()")
-					.matches((node) -> node.getTextContent().equals(" Execution reason ")));
+					.textAtPath("/project/build/plugins/plugin/executions/execution/configuration/options/enabled")
+					.isEqualTo("true"));
+	}
+
+	@Test
+	void configurationContainingOnlyACommentIsWritten() {
+		MavenBuild build = new MavenBuild();
+		build.plugins()
+			.add("com.example", "custom", (plugin) -> plugin
+				.configuration((configuration) -> configuration.content().first().comment("Reason")));
+		String written = writePom(new MavenBuildWriter(), build);
+		assertThat(written).contains("<configuration>", "<!-- Reason -->", "</configuration>");
+		assertThat(new NodeAssert(written)).nodeAtPath("/project/build/plugins/plugin/configuration").isNotNull();
 	}
 
 	@Test
 	void invalidXmlCommentsAreRejected() {
-		for (String comment : new String[] { "invalid -- comment", "invalid \u0000 comment" }) {
+		for (String text : List.of("invalid -- comment", "invalid\u0000comment")) {
 			MavenBuild build = new MavenBuild();
 			build.plugins()
-				.add("com.example", "test-plugin",
-						(plugin) -> plugin.configuration((configuration) -> configuration.comment(comment)));
-			assertThatIllegalArgumentException().isThrownBy(() -> writePom(new MavenBuildWriter(), build));
+				.add("com.example", "custom", (plugin) -> plugin
+					.configuration((configuration) -> configuration.content().first().comment(text)));
+			assertThatIllegalArgumentException().isThrownBy(() -> writePom(new MavenBuildWriter(), build))
+				.withMessageContaining("XML comment");
 		}
 	}
 

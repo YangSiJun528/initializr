@@ -17,7 +17,9 @@
 package io.spring.initializr.generator.buildsystem.gradle;
 
 import java.io.StringWriter;
+import java.util.stream.Collectors;
 
+import io.spring.initializr.generator.buildsystem.BuildContent;
 import io.spring.initializr.generator.buildsystem.MavenRepository;
 import io.spring.initializr.generator.io.IndentingWriter;
 import io.spring.initializr.generator.io.SimpleIndentStrategy;
@@ -63,92 +65,70 @@ class GradleRepositoryContentTests {
 	}
 
 	@Test
-	void extendedRepositoryUrlsAreQuotedForTheTargetDsl() {
+	void credentialsCanBeContributedToBuildAndPluginRepositoriesInBothDialects() {
 		GradleBuild build = new GradleBuild();
-		MavenRepository repository = MavenRepository.withIdAndUrl("private", "https://example.com/a'b/$repo").build();
+		MavenRepository repository = MavenRepository.withIdAndUrl("private", "${repoUrl}").build();
 		build.repositories().add(repository);
 		build.pluginRepositories().add(repository);
-		build.repositoryContent("private").inlineComment("url", "URL");
-		build.pluginRepositoryContent("private").inlineComment("url", "URL");
-		StringWriter groovy = new StringWriter();
-		new GroovyDslGradleBuildWriter().writeTo(new IndentingWriter(groovy), build);
-		StringWriter kotlin = new StringWriter();
-		new KotlinDslGradleBuildWriter().writeTo(new IndentingWriter(kotlin), build);
-		String groovyAssignment = "url = 'https://example.com/a\\'b/$repo' // URL";
-		String kotlinAssignment = "url = uri(\"https://example.com/a'b/\\$repo\") // URL";
-		assertThat(groovy.toString()).contains(groovyAssignment);
-		assertThat(kotlin.toString()).contains(kotlinAssignment);
-		assertThat(write(new GroovyDslGradleSettingsWriter(), build)).contains(groovyAssignment);
-		assertThat(write(new KotlinDslGradleSettingsWriter(), build)).contains(kotlinAssignment);
+		addCredentials(build.repositoryContent("private"), "Build repository");
+		addCredentials(build.pluginRepositoryContent("private"), "Plugin repository");
+		for (GradleBuildWriter writer : new GradleBuildWriter[] { new GroovyDslGradleBuildWriter(),
+				new KotlinDslGradleBuildWriter() }) {
+			assertThat(write(writer, build)).contains("// Build repository").doesNotContain("Plugin repository");
+			assertCredentials(write(writer, build));
+		}
+		for (GradleSettingsWriter writer : new GradleSettingsWriter[] { new GroovyDslGradleSettingsWriter(),
+				new KotlinDslGradleSettingsWriter() }) {
+			assertThat(write(writer, build)).contains("// Plugin repository").doesNotContain("Build repository");
+			assertCredentials(write(writer, build));
+		}
+		assertThat(write(new GroovyDslGradleBuildWriter(), build)).contains("url = '${repoUrl}'");
+		assertThat(write(new KotlinDslGradleBuildWriter(), build)).contains("url = uri(\"${repoUrl}\")");
+		assertThat(write(new GroovyDslGradleSettingsWriter(), build)).contains("url = '${repoUrl}'");
+		assertThat(write(new KotlinDslGradleSettingsWriter(), build)).contains("url = uri(\"${repoUrl}\")");
 	}
 
 	@Test
-	void pluginRepositoryContentUsesTheSamePlacementAndCallbackContract() {
+	void unknownRepositoryIdAndElementKeyAreRejected() {
 		GradleBuild build = new GradleBuild();
-		build.pluginRepositories().add(MavenRepository.withIdAndUrl("private", "https://plugins.example.com"));
-		build.pluginRepositoryContent("private").before("url").comment("Private plugins");
-		build.pluginRepositoryContent("private").inlineComment("url", "URL reason");
-		build.pluginRepositoryContent("private").after("url").write((writer) -> {
+		build.repositoryContent("missing").last().comment("reason");
+		build.pluginRepositoryContent("missing").last().comment("reason");
+		assertThatIllegalArgumentException().isThrownBy(() -> write(new GroovyDslGradleBuildWriter(), build))
+			.withMessageContaining("missing");
+		assertThatIllegalArgumentException().isThrownBy(() -> write(new KotlinDslGradleSettingsWriter(), build))
+			.withMessageContaining("missing");
+		build.repositories().add(MavenRepository.withIdAndUrl("missing", "https://example.com"));
+		build.repositoryContent("missing").before("typo").raw("content");
+		assertThatIllegalArgumentException().isThrownBy(() -> write(new GroovyDslGradleBuildWriter(), build))
+			.withMessageContaining("typo");
+	}
+
+	private void addCredentials(BuildContent.Builder content, String reason) {
+		content.before("url").comment(reason);
+		content.after("url").write((writer) -> {
 			writer.println("credentials {");
-			writer.indented(() -> writer.println("username = providers.gradleProperty(\"repoUsername\").get()"));
+			writer.indented(() -> {
+				writer.println("username = providers.gradleProperty(\"repoUsername\").get()");
+				writer.println("password = providers.gradleProperty(\"repoPassword\").get()");
+			});
 			writer.println("}");
 		});
-		for (GradleSettingsWriter settingsWriter : settingsWriters()) {
-			assertThat(write(settingsWriter, build)).contains("""
-					pluginManagement {
-						repositories {
-							maven {
-								// Private plugins
-					""").contains(" // URL reason\n").contains("""
-								credentials {
-									username = providers.gradleProperty("repoUsername").get()
-								}
-							}
-							gradlePluginPortal()
-						}
-					}
-					""");
-		}
-		assertThat(write(new GroovyDslGradleSettingsWriter(), build))
-			.contains("url = 'https://plugins.example.com' // URL reason");
-		assertThat(write(new KotlinDslGradleSettingsWriter(), build))
-			.contains("url = uri(\"https://plugins.example.com\") // URL reason");
 	}
 
-	@Test
-	void pluginRepositoryContentIsKeptSeparateFromBuildRepositoryContent() {
-		GradleBuild build = new GradleBuild();
-		build.repositories().add(MavenRepository.withIdAndUrl("private", "https://artifacts.example.com"));
-		build.pluginRepositories().add(MavenRepository.withIdAndUrl("private", "https://plugins.example.com"));
-		build.repositoryContent("private").comment("build only");
-		build.pluginRepositoryContent("private").comment("settings only");
-		for (GradleSettingsWriter settingsWriter : settingsWriters()) {
-			assertThat(write(settingsWriter, build)).contains("// settings only").doesNotContain("build only");
-		}
+	private void assertCredentials(String written) {
+		assertThat(written).contains("maven {\n");
+		assertThat(written.lines().map(String::stripLeading).collect(Collectors.joining("\n"))).contains("""
+				credentials {
+					username = providers.gradleProperty("repoUsername").get()
+					password = providers.gradleProperty("repoPassword").get()
+				}
+				""".lines().map(String::stripLeading).collect(Collectors.joining("\n")));
+	}
+
+	private String write(GradleBuildWriter writer, GradleBuild build) {
 		StringWriter out = new StringWriter();
-		new GroovyDslGradleBuildWriter().writeTo(new IndentingWriter(out), build);
-		assertThat(out.toString()).contains("// build only").doesNotContain("settings only");
-	}
-
-	@Test
-	void unknownPluginRepositoryAndUrlAnchorAreRejected() {
-		GradleBuild build = new GradleBuild();
-		build.pluginRepositoryContent("missing").comment("reason");
-		for (GradleSettingsWriter settingsWriter : settingsWriters()) {
-			assertThatIllegalArgumentException().isThrownBy(() -> write(settingsWriter, build))
-				.withMessageContaining("missing");
-		}
-		GradleBuild unknownAnchor = new GradleBuild();
-		unknownAnchor.pluginRepositories().add("maven-central");
-		unknownAnchor.pluginRepositoryContent("maven-central").before("missing").comment("reason");
-		for (GradleSettingsWriter settingsWriter : settingsWriters()) {
-			assertThatIllegalArgumentException().isThrownBy(() -> write(settingsWriter, unknownAnchor))
-				.withMessageContaining("missing");
-		}
-	}
-
-	private GradleSettingsWriter[] settingsWriters() {
-		return new GradleSettingsWriter[] { new GroovyDslGradleSettingsWriter(), new KotlinDslGradleSettingsWriter() };
+		writer.writeTo(new IndentingWriter(out, new SimpleIndentStrategy("\t")), build);
+		return out.toString().replace("\r\n", "\n");
 	}
 
 	private String write(GradleSettingsWriter writer, GradleBuild build) {

@@ -27,19 +27,20 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.function.BiFunction;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import io.spring.initializr.generator.buildsystem.BillOfMaterials;
+import io.spring.initializr.generator.buildsystem.BuildContent;
 import io.spring.initializr.generator.buildsystem.Dependency;
 import io.spring.initializr.generator.buildsystem.DependencyComparator;
 import io.spring.initializr.generator.buildsystem.DependencyContainer;
 import io.spring.initializr.generator.buildsystem.DependencyScope;
 import io.spring.initializr.generator.buildsystem.MavenRepository;
 import io.spring.initializr.generator.buildsystem.PropertyContainer;
-import io.spring.initializr.generator.buildsystem.content.BuildValue;
 import io.spring.initializr.generator.io.IndentingWriter;
 import io.spring.initializr.generator.language.Language;
 import io.spring.initializr.generator.version.VersionProperty;
@@ -148,26 +149,38 @@ public abstract class GradleBuildWriter {
 	}
 
 	protected final void writeRepositories(IndentingWriter writer, GradleBuild build) {
-		List<MavenRepository> repositories = build.repositories().items().toList();
-		if (repositories.isEmpty()) {
-			return;
+		if (!build.repositories().isEmpty()) {
+			writer.println("repositories {");
+			writer.indented(() -> build.repositories()
+				.items()
+				.forEach((repository) -> writeRepository(writer, repository,
+						build.getRepositoryContent(repository.getId()), this::repositoryAsString,
+						this::repositoryUrlAssignment)));
+			writer.println("}");
 		}
-		writer.println("repositories {");
-		writer.indented(() -> repositories.forEach((repository) -> GradleContentWriter.writeRepository(writer,
-				repository, build.getRepositoryContent(repository.getId()), this::repositoryAsString,
-				this::repositoryUrlAssignment)));
-		writer.println("}");
 	}
 
 	protected abstract String repositoryAsString(MavenRepository repository);
 
 	/**
-	 * Render the URL assignment inside an extended repository block.
+	 * Render the URL inside a repository with contributed content.
 	 * @param url the repository URL
-	 * @return the assignment
+	 * @return the assignment in the target DSL
 	 */
 	protected String repositoryUrlAssignment(String url) {
-		return "url = " + valueAsString(BuildValue.text(url));
+		return "url = '" + url + "'";
+	}
+
+	static void writeRepository(IndentingWriter writer, MavenRepository repository, BuildContent content,
+			Function<MavenRepository, String> shorthand, Function<String, String> urlAssignment) {
+		if (content.isEmpty()) {
+			writer.println(shorthand.apply(repository));
+			return;
+		}
+		writer.println("maven {");
+		writer.indented(() -> content.writeTo(writer, List.of(repository), (item) -> "url",
+				(out, item) -> out.println(urlAssignment.apply(item.getUrl())), GradleBuildWriter::writeComment));
+		writer.println("}");
 	}
 
 	private void writeProperties(IndentingWriter writer, PropertyContainer properties) {
@@ -290,69 +303,53 @@ public abstract class GradleBuildWriter {
 	}
 
 	private void writeExtensionCustomization(IndentingWriter writer, GradleExtension extension) {
-		if (extension.hasCustomContent()) {
-			GradleContentWriter.INSTANCE.write(writer, extension.getContent(), this::printCustomizationElement);
-			return;
-		}
-		writeCollection(writer, extension.getInvocations(), this::invocationAsString);
-		writeCollection(writer, extension.getAttributes(), this::attributeAsString);
+		List<Customization> elements = customizationElements(extension.getInvocations(), extension.getAttributes());
 		extension.getNested().forEach((ignored, nested) -> {
-			writer.println(nested.getName() + " {");
-			writer.indented(() -> writeExtensionCustomization(writer, nested));
-			writer.println("}");
+			elements.add(new Customization("nested:" + nested.getName(), (out) -> {
+				out.println(nested.getName() + " {");
+				out.indented(() -> writeExtensionCustomization(out, nested));
+				out.println("}");
+			}));
 		});
+		writeCustomization(writer, extension.getContent(), elements);
 	}
 
 	protected final void writeTaskCustomization(IndentingWriter writer, GradleTask task) {
-		if (task.hasCustomContent()) {
-			GradleContentWriter.INSTANCE.write(writer, task.getContent(), this::printCustomizationElement);
-			return;
-		}
-		writeCollection(writer, task.getInvocations(), this::invocationAsString);
-		writeCollection(writer, task.getAttributes(), this::attributeAsString);
-		task.getNested().forEach((property, nested) -> {
-			writer.println(property + " {");
-			writer.indented(() -> writeTaskCustomization(writer, nested));
-			writer.println("}");
+		List<Customization> elements = customizationElements(task.getInvocations(), task.getAttributes());
+		task.getNested().forEach((property, nestedCustomization) -> {
+			elements.add(new Customization("nested:" + property, (out) -> {
+				out.println(property + " {");
+				out.indented(() -> writeTaskCustomization(out, nestedCustomization));
+				out.println("}");
+			}));
 		});
+		writeCustomization(writer, task.getContent(), elements);
 	}
 
-	private boolean printCustomizationElement(IndentingWriter writer, Object element) {
-		if (element instanceof Invocation invocation) {
-			writer.print(invocationAsString(invocation));
+	private List<Customization> customizationElements(Collection<? extends Invocation> invocations,
+			Collection<? extends Attribute> attributes) {
+		List<Customization> elements = new ArrayList<>();
+		invocations.forEach((invocation) -> elements.add(new Customization("invocation:" + invocation.getTarget(),
+				(out) -> out.println(invocationAsString(invocation)))));
+		attributes.forEach((attribute) -> elements.add(new Customization("attribute:" + attribute.getName(),
+				(out) -> out.println(attributeAsString(attribute)))));
+		return elements;
+	}
+
+	private void writeCustomization(IndentingWriter writer, BuildContent content, List<Customization> elements) {
+		content.writeTo(writer, elements, Customization::key, (out, element) -> element.writer().accept(out),
+				GradleBuildWriter::writeComment);
+	}
+
+	private static void writeComment(IndentingWriter writer, String text) {
+		for (String line : text.split("\\r\\n|\\r|\\n", -1)) {
+			writer.println("// " + line);
 		}
-		else if (element instanceof Attribute attribute) {
-			writer.print(attributeAsString(attribute));
-		}
-		else if (element instanceof GradleTask nestedTask) {
-			writer.println(nestedTask.getName() + " {");
-			writer.indented(() -> writeTaskCustomization(writer, nestedTask));
-			writer.print("}");
-		}
-		else if (element instanceof GradleExtension nestedExtension) {
-			writer.println(nestedExtension.getName() + " {");
-			writer.indented(() -> writeExtensionCustomization(writer, nestedExtension));
-			writer.print("}");
-		}
-		else {
-			throw new IllegalArgumentException("Unsupported Gradle content element: " + element);
-		}
-		return true;
 	}
 
 	private String attributeAsString(Attribute attribute) {
 		String separator = (attribute.getType() == Attribute.Type.SET) ? "=" : "+=";
-		BuildValue value = new BuildValue(attribute.getContent().kind(), attribute.getValue());
-		return "%s %s %s".formatted(attribute.getName(), separator, valueAsString(value));
-	}
-
-	/**
-	 * Render a scalar value. The default uses Groovy single-quoted strings.
-	 * @param value the value
-	 * @return the rendered value
-	 */
-	protected String valueAsString(BuildValue value) {
-		return GradleContentWriter.valueAsString(value, '\'');
+		return "%s %s %s".formatted(attribute.getName(), separator, attribute.getValue());
 	}
 
 	protected abstract String invocationAsString(Invocation invocation);
@@ -421,6 +418,9 @@ public abstract class GradleBuildWriter {
 			result = Stream.concat(result, stream);
 		}
 		return result;
+	}
+
+	private record Customization(String key, Consumer<IndentingWriter> writer) {
 	}
 
 }

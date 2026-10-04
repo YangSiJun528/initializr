@@ -19,16 +19,12 @@ package io.spring.initializr.generator.buildsystem.gradle;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.function.Consumer;
 
-import io.spring.initializr.generator.buildsystem.content.BuildFragment;
-import io.spring.initializr.generator.buildsystem.content.BuildValue;
-import io.spring.initializr.generator.buildsystem.content.ContentSequence;
+import io.spring.initializr.generator.buildsystem.BuildContent;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -49,9 +45,7 @@ public class GradleTask {
 
 	private final Map<String, GradleTask> nested;
 
-	private final ContentSequence<Object> content;
-
-	private final boolean customContent;
+	private final BuildContent content;
 
 	protected GradleTask(Builder builder) {
 		this.name = builder.name;
@@ -59,10 +53,7 @@ public class GradleTask {
 		this.attributes = List.copyOf(builder.attributes.values());
 		this.invocations = List.copyOf(builder.invocations);
 		this.nested = Collections.unmodifiableMap(resolve(builder.nested));
-		this.customContent = builder.customContent;
-		this.content = builder.content.build(Comparator.comparingInt(Builder::contentOrder))
-			.map((entry) -> (entry instanceof Builder nestedBuilder)
-					? Objects.requireNonNull(this.nested.get(nestedBuilder.name)) : entry);
+		this.content = builder.content.build();
 	}
 
 	private static Map<String, GradleTask> resolve(Map<String, Builder> tasks) {
@@ -112,16 +103,8 @@ public class GradleTask {
 		return this.nested;
 	}
 
-	/**
-	 * Return the complete body in output order.
-	 * @return the content sequence
-	 */
-	public ContentSequence<Object> getContent() {
+	BuildContent getContent() {
 		return this.content;
-	}
-
-	boolean hasCustomContent() {
-		return this.customContent;
 	}
 
 	/**
@@ -139,9 +122,16 @@ public class GradleTask {
 
 		private final Map<String, Builder> nested = new LinkedHashMap<>();
 
-		private final ContentSequence.Builder<Object> content = new ContentSequence.Builder<>();
+		private final BuildContent.Builder content = new BuildContent.Builder();
 
-		private boolean customContent;
+		/**
+		 * Contribute content without changing existing element order. Keys are
+		 * {@code invocation:name}, {@code attribute:name} and {@code nested:property}.
+		 * @return the content builder
+		 */
+		public BuildContent.Builder content() {
+			return this.content;
+		}
 
 		/**
 		 * Creates a new instance.
@@ -163,28 +153,7 @@ public class GradleTask {
 		 * @param value the value
 		 */
 		public void attribute(String target, String value) {
-			attribute(target, BuildValue.raw(value));
-		}
-
-		/**
-		 * Set a task attribute with an explicit text or raw value.
-		 * @param target the name of the attribute
-		 * @param value the value
-		 */
-		public void attribute(String target, BuildValue value) {
-			Attribute attribute = new Attribute(target, value,
-					io.spring.initializr.generator.buildsystem.gradle.Attribute.Type.SET);
-			this.attributes.put(target, attribute);
-			this.content.put("attribute:" + target, attribute);
-		}
-
-		/**
-		 * Set a task attribute to text quoted by the target writer.
-		 * @param target the name of the attribute
-		 * @param text the text
-		 */
-		public void attributeText(String target, String text) {
-			attribute(target, BuildValue.text(text));
+			this.attributes.put(target, Attribute.set(target, value));
 		}
 
 		/**
@@ -193,19 +162,7 @@ public class GradleTask {
 		 * @param value the value to append
 		 */
 		public void append(String target, String value) {
-			append(target, BuildValue.raw(value));
-		}
-
-		/**
-		 * Append an explicit text or raw value to a task attribute.
-		 * @param target the name of the attribute
-		 * @param value the value to append
-		 */
-		public void append(String target, BuildValue value) {
-			Attribute attribute = new Attribute(target, value,
-					io.spring.initializr.generator.buildsystem.gradle.Attribute.Type.APPEND);
-			this.attributes.put(target, attribute);
-			this.content.put("attribute:" + target, attribute);
+			this.attributes.put(target, Attribute.append(target, value));
 		}
 
 		/**
@@ -214,64 +171,7 @@ public class GradleTask {
 		 * @param arguments the arguments
 		 */
 		public void invoke(String target, String... arguments) {
-			Invocation invocation = new Invocation(target, Arrays.asList(arguments));
-			this.invocations.add(invocation);
-			this.content.add("invocation:" + target, invocation);
-		}
-
-		/**
-		 * Invoke a task method with explicit text or raw arguments.
-		 * @param target the name of the method
-		 * @param arguments the arguments
-		 */
-		public void invokeValues(String target, BuildValue... arguments) {
-			Invocation invocation = new Invocation(target, arguments);
-			this.invocations.add(invocation);
-			this.content.add("invocation:" + target, invocation);
-		}
-
-		/**
-		 * Return the shared content extension point. Element keys are
-		 * {@code attribute:name}, {@code invocation:name} and {@code nested:name}.
-		 * Replacing an attribute or customizing a nested block retains its position.
-		 * Calling this method opts into content-based rendering for this block. Without
-		 * it, the writer continues to use the existing structured getters.
-		 * @return the content builder
-		 */
-		public ContentSequence.Builder<Object> content() {
-			this.customContent = true;
-			return this.content;
-		}
-
-		private static int contentOrder(Object entry) {
-			if (entry instanceof io.spring.initializr.generator.buildsystem.gradle.Invocation) {
-				return 0;
-			}
-			return (entry instanceof io.spring.initializr.generator.buildsystem.gradle.Attribute) ? 1 : 2;
-		}
-
-		/**
-		 * Insert a fragment at the current position, selecting insertion order.
-		 * @param fragment the fragment
-		 */
-		public void fragment(BuildFragment fragment) {
-			content().fragment(fragment);
-		}
-
-		/**
-		 * Insert a comment at the current position, selecting insertion order.
-		 * @param text the comment text, without delimiters
-		 */
-		public void comment(String text) {
-			fragment(BuildFragment.comment(text));
-		}
-
-		/**
-		 * Insert raw Gradle code at the current position, selecting insertion order.
-		 * @param code code in the target DSL, without escaping
-		 */
-		public void raw(String code) {
-			fragment(BuildFragment.raw(code));
+			this.invocations.add(new Invocation(target, Arrays.asList(arguments)));
 		}
 
 		/**
@@ -282,9 +182,7 @@ public class GradleTask {
 		 * @param customizer a {@link Consumer} to customize the nested task
 		 */
 		public void nested(String property, Consumer<Builder> customizer) {
-			Builder nestedBuilder = this.nested.computeIfAbsent(property, (name) -> new Builder(property));
-			this.content.put("nested:" + property, nestedBuilder);
-			customizer.accept(nestedBuilder);
+			customizer.accept(this.nested.computeIfAbsent(property, (name) -> new Builder(property)));
 		}
 
 		/**
@@ -310,10 +208,6 @@ public class GradleTask {
 			super(target, arguments);
 		}
 
-		Invocation(String target, BuildValue... arguments) {
-			super(target, arguments);
-		}
-
 	}
 
 	/**
@@ -326,11 +220,6 @@ public class GradleTask {
 	public static final class Attribute extends io.spring.initializr.generator.buildsystem.gradle.Attribute {
 
 		private Attribute(String name, String value,
-				io.spring.initializr.generator.buildsystem.gradle.Attribute.Type type) {
-			super(name, value, type);
-		}
-
-		private Attribute(String name, BuildValue value,
 				io.spring.initializr.generator.buildsystem.gradle.Attribute.Type type) {
 			super(name, value, type);
 		}

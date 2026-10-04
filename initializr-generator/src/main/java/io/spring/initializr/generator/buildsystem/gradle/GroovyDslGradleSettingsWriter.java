@@ -16,13 +16,10 @@
 
 package io.spring.initializr.generator.buildsystem.gradle;
 
-import io.spring.initializr.generator.buildsystem.content.BuildValue;
-
 /**
  * A {@link GradleBuild} writer for {@code settings.gradle}.
  *
  * @author Jean-Baptiste Nizet
- * @author Sijun Yang
  */
 public class GroovyDslGradleSettingsWriter extends GradleSettingsWriter {
 
@@ -34,11 +31,6 @@ public class GroovyDslGradleSettingsWriter extends GradleSettingsWriter {
 	@Override
 	protected String urlAssignment(String url) {
 		return "url = " + wrapWithQuotes(url);
-	}
-
-	@Override
-	protected String repositoryUrlAssignment(String url) {
-		return "url = " + GradleContentWriter.valueAsString(BuildValue.text(url), '\'');
 	}
 
 }

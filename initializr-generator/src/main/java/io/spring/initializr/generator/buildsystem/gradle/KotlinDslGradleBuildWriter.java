@@ -25,7 +25,6 @@ import io.spring.initializr.generator.buildsystem.BillOfMaterials;
 import io.spring.initializr.generator.buildsystem.Dependency;
 import io.spring.initializr.generator.buildsystem.Dependency.Exclusion;
 import io.spring.initializr.generator.buildsystem.MavenRepository;
-import io.spring.initializr.generator.buildsystem.content.BuildValue;
 import io.spring.initializr.generator.io.IndentingWriter;
 import io.spring.initializr.generator.version.VersionProperty;
 import io.spring.initializr.generator.version.VersionReference;
@@ -98,7 +97,7 @@ public class KotlinDslGradleBuildWriter extends GradleBuildWriter {
 
 	@Override
 	protected String repositoryUrlAssignment(String url) {
-		return "url = uri(" + valueAsString(BuildValue.text(url)) + ")";
+		return "url = uri(\"" + url + "\")";
 	}
 
 	@Override
@@ -200,13 +199,7 @@ public class KotlinDslGradleBuildWriter extends GradleBuildWriter {
 
 	@Override
 	protected String invocationAsString(Invocation invocation) {
-		return invocation.getTarget() + "("
-				+ String.join(", ", invocation.getArgumentValues().stream().map(this::valueAsString).toList()) + ")";
-	}
-
-	@Override
-	protected String valueAsString(BuildValue value) {
-		return GradleContentWriter.valueAsString(value, '"');
+		return invocation.getTarget() + "(" + String.join(", ", invocation.getArguments()) + ")";
 	}
 
 	@Override

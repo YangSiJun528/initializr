@@ -20,18 +20,14 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.function.Consumer;
 
-import io.spring.initializr.generator.buildsystem.content.BuildFragment;
-import io.spring.initializr.generator.buildsystem.content.BuildValue;
-import io.spring.initializr.generator.buildsystem.content.ContentSequence;
+import io.spring.initializr.generator.buildsystem.BuildContent;
 
 /**
  * A customization for a Gradle extension.
@@ -51,9 +47,7 @@ public class GradleExtension {
 
 	private final Set<String> importedTypes;
 
-	private final ContentSequence<Object> content;
-
-	private final boolean customContent;
+	private final BuildContent content;
 
 	protected GradleExtension(Builder builder) {
 		this.name = builder.name;
@@ -61,10 +55,7 @@ public class GradleExtension {
 		this.invocations = List.copyOf(builder.invocations);
 		this.nested = Collections.unmodifiableMap(resolve(builder.nested));
 		this.importedTypes = collectImportedTypes(builder);
-		this.customContent = builder.customContent;
-		this.content = builder.content.build(Comparator.comparingInt(Builder::contentOrder))
-			.map((entry) -> (entry instanceof Builder nestedBuilder)
-					? Objects.requireNonNull(this.nested.get(nestedBuilder.name)) : entry);
+		this.content = builder.content.build();
 	}
 
 	private static Set<String> collectImportedTypes(Builder builder) {
@@ -126,16 +117,8 @@ public class GradleExtension {
 		return this.importedTypes;
 	}
 
-	/**
-	 * Return the complete body in output order.
-	 * @return the content sequence
-	 */
-	public ContentSequence<Object> getContent() {
+	BuildContent getContent() {
 		return this.content;
-	}
-
-	boolean hasCustomContent() {
-		return this.customContent;
 	}
 
 	/**
@@ -153,9 +136,16 @@ public class GradleExtension {
 
 		private final Set<String> importedTypes = new HashSet<>();
 
-		private final ContentSequence.Builder<Object> content = new ContentSequence.Builder<>();
+		private final BuildContent.Builder content = new BuildContent.Builder();
 
-		private boolean customContent;
+		/**
+		 * Contribute content without changing existing element order. Keys are
+		 * {@code invocation:name}, {@code attribute:name} and {@code nested:name}.
+		 * @return the content builder
+		 */
+		public BuildContent.Builder content() {
+			return this.content;
+		}
 
 		protected Builder(String name) {
 			this.name = name;
@@ -175,27 +165,7 @@ public class GradleExtension {
 		 * @param value the value
 		 */
 		public void attribute(String target, String value) {
-			attribute(target, BuildValue.raw(value));
-		}
-
-		/**
-		 * Set an extension attribute with an explicit text or raw value.
-		 * @param target the name of the attribute
-		 * @param value the value
-		 */
-		public void attribute(String target, BuildValue value) {
-			Attribute attribute = Attribute.set(target, value);
-			this.attributes.put(target, attribute);
-			this.content.put("attribute:" + target, attribute);
-		}
-
-		/**
-		 * Set an extension attribute to text quoted by the target writer.
-		 * @param target the name of the attribute
-		 * @param text the text
-		 */
-		public void attributeText(String target, String text) {
-			attribute(target, BuildValue.text(text));
+			this.attributes.put(target, Attribute.set(target, value));
 		}
 
 		/**
@@ -215,18 +185,7 @@ public class GradleExtension {
 		 * @param value the value to append
 		 */
 		public void append(String target, String value) {
-			append(target, BuildValue.raw(value));
-		}
-
-		/**
-		 * Append an explicit text or raw value to an extension attribute.
-		 * @param target the name of the attribute
-		 * @param value the value to append
-		 */
-		public void append(String target, BuildValue value) {
-			Attribute attribute = Attribute.append(target, value);
-			this.attributes.put(target, attribute);
-			this.content.put("attribute:" + target, attribute);
+			this.attributes.put(target, Attribute.append(target, value));
 		}
 
 		/**
@@ -246,64 +205,7 @@ public class GradleExtension {
 		 * @param arguments the arguments
 		 */
 		public void invoke(String target, String... arguments) {
-			Invocation invocation = new Invocation(target, Arrays.asList(arguments));
-			this.invocations.add(invocation);
-			this.content.add("invocation:" + target, invocation);
-		}
-
-		/**
-		 * Invoke an extension method with explicit text or raw arguments.
-		 * @param target the name of the method
-		 * @param arguments the arguments
-		 */
-		public void invokeValues(String target, BuildValue... arguments) {
-			Invocation invocation = new Invocation(target, arguments);
-			this.invocations.add(invocation);
-			this.content.add("invocation:" + target, invocation);
-		}
-
-		/**
-		 * Return the shared content extension point. Element keys are
-		 * {@code attribute:name}, {@code invocation:name} and {@code nested:name}.
-		 * Replacing an attribute or customizing a nested block retains its position.
-		 * Calling this method opts into content-based rendering for this block. Without
-		 * it, the writer continues to use the existing structured getters.
-		 * @return the content builder
-		 */
-		public ContentSequence.Builder<Object> content() {
-			this.customContent = true;
-			return this.content;
-		}
-
-		private static int contentOrder(Object entry) {
-			if (entry instanceof io.spring.initializr.generator.buildsystem.gradle.Invocation) {
-				return 0;
-			}
-			return (entry instanceof io.spring.initializr.generator.buildsystem.gradle.Attribute) ? 1 : 2;
-		}
-
-		/**
-		 * Insert a fragment at the current position, selecting insertion order.
-		 * @param fragment the fragment
-		 */
-		public void fragment(BuildFragment fragment) {
-			content().fragment(fragment);
-		}
-
-		/**
-		 * Insert a comment at the current position, selecting insertion order.
-		 * @param text the comment text, without delimiters
-		 */
-		public void comment(String text) {
-			fragment(BuildFragment.comment(text));
-		}
-
-		/**
-		 * Insert raw Gradle code at the current position, selecting insertion order.
-		 * @param code code in the target DSL, without escaping
-		 */
-		public void raw(String code) {
-			fragment(BuildFragment.raw(code));
+			this.invocations.add(new Invocation(target, Arrays.asList(arguments)));
 		}
 
 		/**
@@ -312,9 +214,7 @@ public class GradleExtension {
 		 * @param arguments the arguments
 		 */
 		public void invoke(String target, Collection<String> arguments) {
-			Invocation invocation = new Invocation(target, List.copyOf(arguments));
-			this.invocations.add(invocation);
-			this.content.add("invocation:" + target, invocation);
+			this.invocations.add(new Invocation(target, List.copyOf(arguments)));
 		}
 
 		/**
@@ -347,9 +247,7 @@ public class GradleExtension {
 		 * @param customizer a {@link Consumer} to customize the nested extension
 		 */
 		public void nested(String name, Consumer<Builder> customizer) {
-			Builder nestedBuilder = this.nested.computeIfAbsent(name, (ignored) -> new Builder(name));
-			this.content.put("nested:" + name, nestedBuilder);
-			customizer.accept(nestedBuilder);
+			customizer.accept(this.nested.computeIfAbsent(name, (ignored) -> new Builder(name)));
 		}
 
 		/**

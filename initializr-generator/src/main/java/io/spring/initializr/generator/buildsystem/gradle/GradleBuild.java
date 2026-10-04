@@ -18,16 +18,12 @@ package io.spring.initializr.generator.buildsystem.gradle;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
 import java.util.function.Consumer;
-import java.util.stream.Collectors;
 
 import io.spring.initializr.generator.buildsystem.Build;
+import io.spring.initializr.generator.buildsystem.BuildContent;
 import io.spring.initializr.generator.buildsystem.BuildItemResolver;
-import io.spring.initializr.generator.buildsystem.MavenRepository;
 import io.spring.initializr.generator.buildsystem.MavenRepositoryContainer;
-import io.spring.initializr.generator.buildsystem.content.ContentSequence;
 import io.spring.initializr.generator.buildsystem.gradle.GradleBuildSettings.Builder;
 import org.jspecify.annotations.Nullable;
 
@@ -55,9 +51,9 @@ public class GradleBuild extends Build {
 
 	private final GradleExtensionContainer extensions = new GradleExtensionContainer();
 
-	private final Map<String, ContentSequence.Builder<String>> repositoryContent = new LinkedHashMap<>();
+	private final Map<String, BuildContent.Builder> repositoryContent = new LinkedHashMap<>();
 
-	private final Map<String, ContentSequence.Builder<String>> pluginRepositoryContent = new LinkedHashMap<>();
+	private final Map<String, BuildContent.Builder> pluginRepositoryContent = new LinkedHashMap<>();
 
 	/**
 	 * Create a new Gradle build using the specified {@link BuildItemResolver}.
@@ -130,66 +126,49 @@ public class GradleBuild extends Build {
 	}
 
 	/**
-	 * Return the shared extension point inside a repository's {@code maven} block. The
-	 * {@code url} key identifies the generated URL assignment. The repository must be
-	 * registered in {@link #repositories()} before writing the build. Raw content and
-	 * callbacks must use the selected Gradle DSL.
+	 * Contribute inside a registered repository's {@code maven} block. The {@code url}
+	 * key identifies the generated URL assignment. Raw code uses the selected DSL.
 	 * @param id the repository ID
 	 * @return the content builder
 	 */
-	public ContentSequence.Builder<String> repositoryContent(String id) {
-		return repositoryContent(this.repositoryContent, id);
+	public BuildContent.Builder repositoryContent(String id) {
+		return this.repositoryContent.computeIfAbsent(id, (key) -> new BuildContent.Builder());
 	}
 
 	/**
-	 * Return the shared extension point inside a plugin repository's {@code maven} block
-	 * in the settings file. The {@code url} key identifies the URL assignment. The
-	 * repository must be registered in {@link #pluginRepositories()} before writing the
-	 * settings file.
+	 * Contribute inside a registered plugin repository's {@code maven} block in the
+	 * settings file. The {@code url} key identifies the generated URL assignment.
 	 * @param id the repository ID
 	 * @return the content builder
 	 */
-	public ContentSequence.Builder<String> pluginRepositoryContent(String id) {
-		return repositoryContent(this.pluginRepositoryContent, id);
+	public BuildContent.Builder pluginRepositoryContent(String id) {
+		return this.pluginRepositoryContent.computeIfAbsent(id, (key) -> new BuildContent.Builder());
 	}
 
-	private ContentSequence.Builder<String> repositoryContent(Map<String, ContentSequence.Builder<String>> content,
-			String id) {
-		Objects.requireNonNull(id, "id");
-		return content.computeIfAbsent(id, (ignored) -> {
-			ContentSequence.Builder<String> builder = new ContentSequence.Builder<>();
-			builder.add("url", "url");
-			return builder;
-		});
+	BuildContent getRepositoryContent(String id) {
+		return snapshot(this.repositoryContent, id);
 	}
 
-	@Nullable ContentSequence<String> getRepositoryContent(String id) {
-		return repositoryContentSnapshot(this.repositoryContent, id);
+	BuildContent getPluginRepositoryContent(String id) {
+		return snapshot(this.pluginRepositoryContent, id);
 	}
 
-	@Nullable ContentSequence<String> getPluginRepositoryContent(String id) {
-		return repositoryContentSnapshot(this.pluginRepositoryContent, id);
-	}
-
-	private @Nullable ContentSequence<String> repositoryContentSnapshot(
-			Map<String, ContentSequence.Builder<String>> content, String id) {
-		ContentSequence.Builder<String> builder = content.get(id);
-		return (builder != null) ? builder.build() : null;
+	private BuildContent snapshot(Map<String, BuildContent.Builder> content, String id) {
+		BuildContent.Builder builder = content.get(id);
+		return (builder != null) ? builder.build() : BuildContent.EMPTY;
 	}
 
 	void validateRepositoryContent() {
-		validateRepositoryContent(this.repositoryContent, repositories());
+		validateContent(this.repositoryContent, repositories());
 	}
 
 	void validatePluginRepositoryContent() {
-		validateRepositoryContent(this.pluginRepositoryContent, pluginRepositories());
+		validateContent(this.pluginRepositoryContent, pluginRepositories());
 	}
 
-	private void validateRepositoryContent(Map<String, ContentSequence.Builder<String>> content,
-			MavenRepositoryContainer repositories) {
-		Set<String> ids = repositories.items().map(MavenRepository::getId).collect(Collectors.toSet());
+	private void validateContent(Map<String, BuildContent.Builder> content, MavenRepositoryContainer repositories) {
 		for (String id : content.keySet()) {
-			if (!ids.contains(id)) {
+			if (repositories.items().noneMatch((repository) -> repository.getId().equals(id))) {
 				throw new IllegalArgumentException("No registered repository with ID '" + id + "'");
 			}
 		}

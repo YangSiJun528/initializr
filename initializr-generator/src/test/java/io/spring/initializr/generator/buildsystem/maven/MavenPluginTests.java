@@ -29,26 +29,8 @@ import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException
  * Tests for {@link MavenPlugin}.
  *
  * @author Stephane Nicoll
- * @author Sijun Yang
  */
 class MavenPluginTests {
-
-	@Test
-	@SuppressWarnings("unchecked")
-	void configurationFragmentsPreserveExistingSettingViews() {
-		MavenPlugin plugin = plugin("com.example", "test-plugin").configuration((configuration) -> {
-			configuration.comment("Reason");
-			configuration.raw("<extra/>");
-			configuration.add("enabled", "true");
-			configuration.configure("nested", (nested) -> nested.comment("Nested reason").add("item", "value"));
-		}).build();
-		MavenPlugin.Configuration configuration = plugin.getConfiguration();
-		assertThat(configuration).isNotNull();
-		List<Setting> settings = configuration.getSettings();
-		assertThat(settings).extracting(Setting::getName).containsExactly("enabled", "nested");
-		assertThat(settings.get(0).getValue()).isEqualTo("true");
-		assertThat((List<Setting>) settings.get(1).getValue()).extracting(Setting::getValue).containsExactly("value");
-	}
 
 	@Test
 	void configurationParameterCanBeCustomized() {

@@ -23,9 +23,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 
-import io.spring.initializr.generator.buildsystem.content.BuildFragment;
-import io.spring.initializr.generator.buildsystem.content.BuildValue;
-import io.spring.initializr.generator.buildsystem.content.ContentSequence;
+import io.spring.initializr.generator.buildsystem.BuildContent;
 import io.spring.initializr.generator.version.VersionReference;
 import org.jspecify.annotations.Nullable;
 
@@ -369,16 +367,16 @@ public class MavenPlugin {
 	 */
 	public static class ConfigurationBuilder {
 
-		private final ContentSequence.Builder<Setting> content = new ContentSequence.Builder<>();
+		private final List<Setting> settings = new ArrayList<>();
+
+		private final BuildContent.Builder content = new BuildContent.Builder();
 
 		/**
-		 * Return the shared content extension point. Keys are parameter names; placement
-		 * defaults to the first parameter with that name. Occurrence indexes select
-		 * repeated parameters. Inline comments follow the closing tag of the parameter,
-		 * including nested parameters.
+		 * Contribute content around existing parameters. Keys are parameter names; named
+		 * placements select the first parameter with that name.
 		 * @return the content builder
 		 */
-		public ContentSequence.Builder<Setting> content() {
+		public BuildContent.Builder content() {
 			return this.content;
 		}
 
@@ -389,56 +387,8 @@ public class MavenPlugin {
 		 * @return this for method chaining
 		 */
 		public ConfigurationBuilder add(String name, String value) {
-			return addValue(name, BuildValue.text(value));
-		}
-
-		/**
-		 * Add a parameter with an explicit text or raw value.
-		 * @param name the name of the parameter
-		 * @param value the value
-		 * @return this for method chaining
-		 */
-		public ConfigurationBuilder addValue(String name, BuildValue value) {
-			this.content.add(name, new Setting(name, value));
+			this.settings.add(new Setting(name, value));
 			return this;
-		}
-
-		/**
-		 * Add a parameter containing raw XML, without escaping.
-		 * @param name the name of the parameter
-		 * @param xml the raw XML content inside the parameter element
-		 * @return this for method chaining
-		 */
-		public ConfigurationBuilder addRaw(String name, String xml) {
-			return addValue(name, BuildValue.raw(xml));
-		}
-
-		/**
-		 * Insert a standalone fragment at the current position.
-		 * @param fragment the fragment
-		 * @return this for method chaining
-		 */
-		public ConfigurationBuilder fragment(BuildFragment fragment) {
-			this.content.fragment(fragment);
-			return this;
-		}
-
-		/**
-		 * Insert an XML comment at the current position.
-		 * @param text the comment text, without delimiters
-		 * @return this for method chaining
-		 */
-		public ConfigurationBuilder comment(String text) {
-			return fragment(BuildFragment.comment(text));
-		}
-
-		/**
-		 * Insert raw XML at the current position, without escaping.
-		 * @param xml the raw XML fragment
-		 * @return this for method chaining
-		 */
-		public ConfigurationBuilder raw(String xml) {
-			return fragment(BuildFragment.raw(xml));
 		}
 
 		/**
@@ -451,7 +401,7 @@ public class MavenPlugin {
 		public ConfigurationBuilder add(String name, Consumer<ConfigurationBuilder> consumer) {
 			ConfigurationBuilder nestedConfiguration = new ConfigurationBuilder();
 			consumer.accept(nestedConfiguration);
-			this.content.add(name, new Setting(name, nestedConfiguration));
+			this.settings.add(new Setting(name, nestedConfiguration));
 			return this;
 		}
 
@@ -467,16 +417,15 @@ public class MavenPlugin {
 		 * @see #add(String, Consumer)
 		 */
 		public ConfigurationBuilder configure(String name, Consumer<ConfigurationBuilder> consumer) {
-			Object value = this.content.elements()
-				.stream()
+			Object value = this.settings.stream()
 				.filter((candidate) -> candidate.getName().equals(name))
 				.findFirst()
 				.orElseGet(() -> {
 					Setting nestedSetting = new Setting(name, new ConfigurationBuilder());
-					this.content.add(name, nestedSetting);
+					this.settings.add(nestedSetting);
 					return nestedSetting;
 				})
-				.getContent();
+				.getValue();
 			if (!(value instanceof ConfigurationBuilder nestedConfiguration)) {
 				throw new IllegalArgumentException(
 						"Could not customize parameter '%s', a single value %s is already registered".formatted(name,
@@ -491,14 +440,21 @@ public class MavenPlugin {
 		 * @return a {@link Configuration}
 		 */
 		Configuration build() {
-			return new Configuration(this.content.build().map(this::resolve));
+			return new Configuration(
+					this.settings.stream().map((entry) -> resolve(entry.getName(), entry.getValue())).toList(),
+					this.content.build());
 		}
 
-		private Setting resolve(Setting setting) {
-			if (setting.getContent() instanceof ConfigurationBuilder configurationBuilder) {
-				return new Setting(setting.getName(), configurationBuilder.build());
+		private Setting resolve(String key, Object value) {
+			if (value instanceof ConfigurationBuilder configurationBuilder) {
+				List<Setting> values = configurationBuilder.settings.stream()
+					.map((entry) -> resolve(entry.getName(), entry.getValue()))
+					.toList();
+				return new Setting(key, values, configurationBuilder.content.build());
 			}
-			return setting;
+			else {
+				return new Setting(key, value);
+			}
 		}
 
 	}
@@ -508,26 +464,24 @@ public class MavenPlugin {
 	 */
 	public static final class Configuration {
 
-		private final ContentSequence<Setting> content;
+		private final List<Setting> settings;
 
-		private Configuration(ContentSequence<Setting> content) {
+		private final BuildContent content;
+
+		private Configuration(List<Setting> settings, BuildContent content) {
+			this.settings = List.copyOf(settings);
 			this.content = content;
 		}
 
 		/**
-		 * Return the {@linkplain Setting settings} of the configuration, excluding
-		 * standalone fragments.
+		 * Return the {@linkplain Setting settings} of the configuration.
 		 * @return the settings
 		 */
 		public List<Setting> getSettings() {
-			return this.content.elements();
+			return this.settings;
 		}
 
-		/**
-		 * Return the complete content in output order.
-		 * @return the content sequence
-		 */
-		public ContentSequence<Setting> getContent() {
+		BuildContent getContent() {
 			return this.content;
 		}
 
@@ -542,9 +496,16 @@ public class MavenPlugin {
 
 		private final Object value;
 
+		private final BuildContent content;
+
 		private Setting(String name, Object value) {
+			this(name, value, BuildContent.EMPTY);
+		}
+
+		private Setting(String name, Object value, BuildContent content) {
 			this.name = name;
 			this.value = value;
+			this.content = content;
 		}
 
 		/**
@@ -556,22 +517,15 @@ public class MavenPlugin {
 		}
 
 		/**
-		 * Return the value as a string or a list of nested {@link Setting settings}.
-		 * Standalone fragments are excluded from nested settings.
-		 * @return a simple value or a list of nested settings
+		 * Return the value. Can be a nested {@link Configuration}.
+		 * @return a simple value or a nested configuration
 		 */
 		public Object getValue() {
-			if (this.value instanceof BuildValue buildValue) {
-				return buildValue.content();
-			}
-			if (this.value instanceof Configuration nestedConfiguration) {
-				return nestedConfiguration.getSettings();
-			}
 			return this.value;
 		}
 
-		Object getContent() {
-			return this.value;
+		BuildContent getContent() {
+			return this.content;
 		}
 
 	}

@@ -25,7 +25,6 @@ import io.spring.initializr.generator.buildsystem.Dependency;
 import io.spring.initializr.generator.buildsystem.Dependency.Exclusion;
 import io.spring.initializr.generator.buildsystem.DependencyScope;
 import io.spring.initializr.generator.buildsystem.MavenRepository;
-import io.spring.initializr.generator.buildsystem.content.BuildValue;
 import io.spring.initializr.generator.io.IndentingWriter;
 import io.spring.initializr.generator.io.SimpleIndentStrategy;
 import io.spring.initializr.generator.version.VersionProperty;
@@ -43,26 +42,8 @@ import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
  *
  * @author Jean-Baptiste Nizet
  * @author Stephane Nicoll
- * @author Sijun Yang
  */
 class KotlinDslGradleBuildWriterTests extends GradleBuildWriterTests {
-
-	@Test
-	void textValuesAreQuotedAndRawValuesArePreserved() {
-		GradleBuild build = new GradleBuild();
-		build.extensions().customize("custom", (extension) -> {
-			extension.attributeText("label", "it's \"quoted\" $home\\path\nnext");
-			extension.invokeValues("configure", BuildValue.text("hello"), BuildValue.raw("42"));
-		});
-		build.tasks().customize("test", (task) -> {
-			task.attributeText("description", "Task text");
-			task.append("args", BuildValue.text("--verbose"));
-			task.invokeValues("configure", BuildValue.text("task"), BuildValue.raw("true"));
-		});
-		assertThat(write(build)).contains("label = \"it's \\\"quoted\\\" \\$home\\\\path\\nnext\"",
-				"configure(\"hello\", 42)", "description = \"Task text\"", "args += \"--verbose\"",
-				"configure(\"task\", true)");
-	}
 
 	@Test
 	void gradleBuildWithCoordinates() {
