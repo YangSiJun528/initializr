@@ -24,12 +24,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 
+import io.spring.initializr.generator.buildsystem.content.BuildFragment;
+import io.spring.initializr.generator.buildsystem.content.BuildValue;
 import org.jspecify.annotations.Nullable;
 
 /**
  * A customization for a Gradle task.
  *
  * @author Stephane Nicoll
+ * @author Sijun Yang
  */
 public class GradleTask {
 
@@ -43,12 +46,15 @@ public class GradleTask {
 
 	private final Map<String, GradleTask> nested;
 
+	private final List<BuildFragment> fragments;
+
 	protected GradleTask(Builder builder) {
 		this.name = builder.name;
 		this.type = builder.type;
 		this.attributes = List.copyOf(builder.attributes.values());
 		this.invocations = List.copyOf(builder.invocations);
 		this.nested = Collections.unmodifiableMap(resolve(builder.nested));
+		this.fragments = List.copyOf(builder.fragments);
 	}
 
 	private static Map<String, GradleTask> resolve(Map<String, Builder> tasks) {
@@ -98,6 +104,10 @@ public class GradleTask {
 		return this.nested;
 	}
 
+	List<BuildFragment> getFragments() {
+		return this.fragments;
+	}
+
 	/**
 	 * Builder for {@link GradleTask}.
 	 */
@@ -112,6 +122,8 @@ public class GradleTask {
 		private final List<Invocation> invocations = new ArrayList<>();
 
 		private final Map<String, Builder> nested = new LinkedHashMap<>();
+
+		private final List<BuildFragment> fragments = new ArrayList<>();
 
 		/**
 		 * Creates a new instance.
@@ -133,7 +145,26 @@ public class GradleTask {
 		 * @param value the value
 		 */
 		public void attribute(String target, String value) {
-			this.attributes.put(target, Attribute.set(target, value));
+			attribute(target, BuildValue.raw(value));
+		}
+
+		/**
+		 * Set a task attribute with an explicit text or raw value.
+		 * @param target the name of the attribute
+		 * @param value the value
+		 */
+		public void attribute(String target, BuildValue value) {
+			this.attributes.put(target,
+					new Attribute(target, value, io.spring.initializr.generator.buildsystem.gradle.Attribute.Type.SET));
+		}
+
+		/**
+		 * Set a task attribute to text quoted by the target writer.
+		 * @param target the name of the attribute
+		 * @param text the text
+		 */
+		public void attributeText(String target, String text) {
+			attribute(target, BuildValue.text(text));
 		}
 
 		/**
@@ -142,7 +173,17 @@ public class GradleTask {
 		 * @param value the value to append
 		 */
 		public void append(String target, String value) {
-			this.attributes.put(target, Attribute.append(target, value));
+			append(target, BuildValue.raw(value));
+		}
+
+		/**
+		 * Append an explicit text or raw value to a task attribute.
+		 * @param target the name of the attribute
+		 * @param value the value to append
+		 */
+		public void append(String target, BuildValue value) {
+			this.attributes.put(target, new Attribute(target, value,
+					io.spring.initializr.generator.buildsystem.gradle.Attribute.Type.APPEND));
 		}
 
 		/**
@@ -152,6 +193,39 @@ public class GradleTask {
 		 */
 		public void invoke(String target, String... arguments) {
 			this.invocations.add(new Invocation(target, Arrays.asList(arguments)));
+		}
+
+		/**
+		 * Invoke a task method with explicit text or raw arguments.
+		 * @param target the name of the method
+		 * @param arguments the arguments
+		 */
+		public void invokeValues(String target, BuildValue... arguments) {
+			this.invocations.add(new Invocation(target, arguments));
+		}
+
+		/**
+		 * Append a fragment after this task's structured configuration.
+		 * @param fragment the fragment
+		 */
+		public void fragment(BuildFragment fragment) {
+			this.fragments.add(fragment);
+		}
+
+		/**
+		 * Append a comment after this task's structured configuration.
+		 * @param text the comment text, without delimiters
+		 */
+		public void comment(String text) {
+			fragment(BuildFragment.comment(text));
+		}
+
+		/**
+		 * Append raw Gradle code after this task's structured configuration.
+		 * @param code code in the target DSL, without escaping
+		 */
+		public void raw(String code) {
+			fragment(BuildFragment.raw(code));
 		}
 
 		/**
@@ -188,6 +262,10 @@ public class GradleTask {
 			super(target, arguments);
 		}
 
+		Invocation(String target, BuildValue... arguments) {
+			super(target, arguments);
+		}
+
 	}
 
 	/**
@@ -200,6 +278,11 @@ public class GradleTask {
 	public static final class Attribute extends io.spring.initializr.generator.buildsystem.gradle.Attribute {
 
 		private Attribute(String name, String value,
+				io.spring.initializr.generator.buildsystem.gradle.Attribute.Type type) {
+			super(name, value, type);
+		}
+
+		private Attribute(String name, BuildValue value,
 				io.spring.initializr.generator.buildsystem.gradle.Attribute.Type type) {
 			super(name, value, type);
 		}

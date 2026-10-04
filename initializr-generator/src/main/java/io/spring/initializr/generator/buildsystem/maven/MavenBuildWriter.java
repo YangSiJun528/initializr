@@ -37,6 +37,8 @@ import io.spring.initializr.generator.buildsystem.DependencyScope;
 import io.spring.initializr.generator.buildsystem.MavenRepository;
 import io.spring.initializr.generator.buildsystem.MavenRepositoryContainer;
 import io.spring.initializr.generator.buildsystem.PropertyContainer;
+import io.spring.initializr.generator.buildsystem.content.BuildFragment;
+import io.spring.initializr.generator.buildsystem.content.BuildValue;
 import io.spring.initializr.generator.buildsystem.maven.MavenDistributionManagement.DeploymentRepository;
 import io.spring.initializr.generator.buildsystem.maven.MavenDistributionManagement.Relocation;
 import io.spring.initializr.generator.buildsystem.maven.MavenDistributionManagement.Site;
@@ -62,6 +64,7 @@ import org.springframework.util.StringUtils;
  * @author Joachim Pasquali
  * @author Niklas Herder
  * @author Maurice Zeijen
+ * @author Sijun Yang
  */
 public class MavenBuildWriter {
 
@@ -440,19 +443,23 @@ public class MavenBuildWriter {
 	}
 
 	private void writePluginConfiguration(IndentingWriter writer, @Nullable Configuration configuration) {
-		if (configuration == null || configuration.getSettings().isEmpty()) {
+		if (configuration == null || configuration.getContent().isEmpty()) {
 			return;
 		}
-		writeCollectionElement(writer, "configuration", configuration.getSettings(), this::writeSetting);
+		writeCollectionElement(writer, "configuration", configuration.getContent(), this::writeConfigurationEntry);
 	}
 
-	@SuppressWarnings("unchecked")
-	private void writeSetting(IndentingWriter writer, Setting setting) {
-		if (setting.getValue() instanceof String) {
-			writeSingleElement(writer, setting.getName(), setting.getValue());
+	private void writeConfigurationEntry(IndentingWriter writer, Object entry) {
+		if (entry instanceof BuildFragment fragment) {
+			MavenContentWriter.writeFragment(writer, fragment);
 		}
-		else if (setting.getValue() instanceof List<?> list) {
-			writeCollectionElement(writer, setting.getName(), (List<Setting>) list, this::writeSetting);
+		else if (entry instanceof Setting setting) {
+			if (setting.getContent() instanceof BuildValue value) {
+				MavenContentWriter.writeValue(writer, setting.getName(), value);
+			}
+			else if (setting.getContent() instanceof Configuration nested) {
+				writeCollectionElement(writer, setting.getName(), nested.getContent(), this::writeConfigurationEntry);
+			}
 		}
 	}
 
@@ -632,15 +639,7 @@ public class MavenBuildWriter {
 
 	private void writeSingleElement(IndentingWriter writer, String name, @Nullable Object value) {
 		if (value != null) {
-			CharSequence text = (value instanceof CharSequence cs) ? cs : value.toString();
-			if (!StringUtils.hasLength(text)) {
-				writer.println("<%s/>".formatted(name));
-			}
-			else {
-				writer.print("<%s>".formatted(name));
-				writer.print(encodeText(text));
-				writer.println("</%s>".formatted(name));
-			}
+			MavenContentWriter.writeValue(writer, name, BuildValue.text(value.toString()));
 		}
 	}
 
@@ -677,22 +676,6 @@ public class MavenBuildWriter {
 		if (value != null) {
 			elementWriter.accept(value);
 		}
-	}
-
-	private String encodeText(CharSequence text) {
-		StringBuilder sb = new StringBuilder();
-		for (int i = 0; i < text.length(); i++) {
-			char character = text.charAt(i);
-			switch (character) {
-				case '\'' -> sb.append("&apos;");
-				case '\"' -> sb.append("&quot;");
-				case '<' -> sb.append("&lt;");
-				case '>' -> sb.append("&gt;");
-				case '&' -> sb.append("&amp;");
-				default -> sb.append(character);
-			}
-		}
-		return sb.toString();
 	}
 
 }

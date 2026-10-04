@@ -39,6 +39,7 @@ import io.spring.initializr.generator.buildsystem.DependencyContainer;
 import io.spring.initializr.generator.buildsystem.DependencyScope;
 import io.spring.initializr.generator.buildsystem.MavenRepository;
 import io.spring.initializr.generator.buildsystem.PropertyContainer;
+import io.spring.initializr.generator.buildsystem.content.BuildValue;
 import io.spring.initializr.generator.io.IndentingWriter;
 import io.spring.initializr.generator.language.Language;
 import io.spring.initializr.generator.version.VersionProperty;
@@ -53,6 +54,7 @@ import org.springframework.util.StringUtils;
  * @author Stephane Nicoll
  * @author Jean-Baptiste Nizet
  * @author Moritz Halbritter
+ * @author Sijun Yang
  * @see GroovyDslGradleBuildWriter
  * @see KotlinDslGradleBuildWriter
  */
@@ -277,6 +279,7 @@ public abstract class GradleBuildWriter {
 			writer.indented(() -> writeExtensionCustomization(writer, nested));
 			writer.println("}");
 		});
+		extension.getFragments().forEach((fragment) -> GradleContentWriter.writeFragment(writer, fragment));
 	}
 
 	protected final void writeTaskCustomization(IndentingWriter writer, GradleTask task) {
@@ -287,11 +290,21 @@ public abstract class GradleBuildWriter {
 			writer.indented(() -> writeTaskCustomization(writer, nestedCustomization));
 			writer.println("}");
 		});
+		task.getFragments().forEach((fragment) -> GradleContentWriter.writeFragment(writer, fragment));
 	}
 
 	private String attributeAsString(Attribute attribute) {
 		String separator = (attribute.getType() == Attribute.Type.SET) ? "=" : "+=";
-		return "%s %s %s".formatted(attribute.getName(), separator, attribute.getValue());
+		return "%s %s %s".formatted(attribute.getName(), separator, valueAsString(attribute.getContent()));
+	}
+
+	/**
+	 * Render a scalar value. The default uses Groovy single-quoted strings.
+	 * @param value the value
+	 * @return the rendered value
+	 */
+	protected String valueAsString(BuildValue value) {
+		return GradleContentWriter.valueAsString(value, '\'');
 	}
 
 	protected abstract String invocationAsString(Invocation invocation);

@@ -34,6 +34,7 @@ import org.jspecify.annotations.Nullable;
  *
  * @author Jean-Baptiste Nizet
  * @author Moritz Halbritter
+ * @author Sijun Yang
  */
 public class GroovyDslGradleBuildWriter extends GradleBuildWriter {
 
@@ -200,7 +201,7 @@ public class GroovyDslGradleBuildWriter extends GradleBuildWriter {
 	@Override
 	protected String invocationAsString(Invocation invocation) {
 		String arguments = (invocation.getArguments().isEmpty()) ? "()"
-				: " " + String.join(", ", invocation.getArguments());
+				: " " + String.join(", ", invocation.getArgumentValues().stream().map(this::valueAsString).toList());
 		return invocation.getTarget() + arguments;
 	}
 

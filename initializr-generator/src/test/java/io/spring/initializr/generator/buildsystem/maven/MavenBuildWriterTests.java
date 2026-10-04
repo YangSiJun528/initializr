@@ -33,6 +33,7 @@ import org.junit.jupiter.api.Test;
 import org.w3c.dom.Node;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
 
 /**
  * Tests for {@link MavenBuildWriter}.
@@ -42,8 +43,62 @@ import static org.assertj.core.api.Assertions.assertThat;
  * @author Jafer Khan Shamshad
  * @author Joachim Pasquali
  * @author Maurice Zeijen
+ * @author Sijun Yang
  */
 class MavenBuildWriterTests {
+
+	@Test
+	void pluginConfigurationPreservesCommentsRawXmlAndText() {
+		MavenBuild build = new MavenBuild();
+		build.plugins().add("com.example", "test-plugin", (plugin) -> plugin.configuration((configuration) -> {
+			configuration.add("before", "<text> & \"quoted\"");
+			configuration.comment("Reason <https://example.com> & reference-");
+			configuration.configure("nested", (nested) -> {
+				nested.comment("Nested reason");
+				nested.addRaw("content", "<![CDATA[<license> & copyright]]>");
+				nested.raw("<custom enabled=\"true\"><![CDATA[first\nsecond]]></custom>");
+			});
+			configuration.configure("nested", (nested) -> nested.add("after", "value"));
+		}));
+		String written = writePom(new MavenBuildWriter(), build);
+		assertThat(written).contains("<before>&lt;text&gt; &amp; &quot;quoted&quot;</before>");
+		assertThat(written).contains("<content><![CDATA[<license> & copyright]]></content>");
+		NodeAssert configuration = new NodeAssert(written).nodeAtPath("/project/build/plugins/plugin/configuration");
+		assertThat(configuration).textAtPath("before").isEqualTo("<text> & \"quoted\"");
+		assertThat(configuration).nodesAtPath("node()[not(self::text())]")
+			.extracting(Node::getNodeType)
+			.containsExactly(Node.ELEMENT_NODE, Node.COMMENT_NODE, Node.ELEMENT_NODE);
+		assertThat(configuration).nodeAtPath("comment()")
+			.matches((node) -> node.getTextContent().equals(" Reason <https://example.com> & reference- "));
+		assertThat(configuration).textAtPath("nested/content").isEqualTo("<license> & copyright");
+		assertThat(configuration).textAtPath("nested/custom").isEqualTo("first\nsecond");
+		assertThat(configuration).nodesAtPath("nested/node()[not(self::text())]")
+			.extracting(Node::getNodeName)
+			.containsExactly("#comment", "content", "custom", "after");
+	}
+
+	@Test
+	void executionConfigurationWithOnlyCommentsIsWritten() {
+		MavenBuild build = new MavenBuild();
+		build.plugins()
+			.add("com.example", "test-plugin", (plugin) -> plugin.execution("test", (execution) -> execution
+				.configuration((configuration) -> configuration.comment("Execution reason"))));
+		generatePom(build,
+				(pom) -> assertThat(pom)
+					.nodeAtPath("/project/build/plugins/plugin/executions/execution/configuration/comment()")
+					.matches((node) -> node.getTextContent().equals(" Execution reason ")));
+	}
+
+	@Test
+	void invalidXmlCommentsAreRejected() {
+		for (String comment : new String[] { "invalid -- comment", "invalid \u0000 comment" }) {
+			MavenBuild build = new MavenBuild();
+			build.plugins()
+				.add("com.example", "test-plugin",
+						(plugin) -> plugin.configuration((configuration) -> configuration.comment(comment)));
+			assertThatIllegalArgumentException().isThrownBy(() -> writePom(new MavenBuildWriter(), build));
+		}
+	}
 
 	@Test
 	void basicPom() {

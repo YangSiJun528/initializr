@@ -26,8 +26,57 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Common tests for {@link GradleBuildWriter} implementations.
  *
  * @author Stephane Nicoll
+ * @author Sijun Yang
  */
 public abstract class GradleBuildWriterTests {
+
+	@Test
+	void commentsAndRawFragmentsAreWrittenInsideNestedBlocks() {
+		GradleBuild build = new GradleBuild();
+		build.extensions().customize("custom", (extension) -> extension.nested("options", (nested) -> {
+			nested.attribute("enabled", "true");
+			nested.comment("First line\r\nSecond line");
+			nested.raw("first = 1");
+			nested.raw("second = 2");
+		}));
+		build.tasks().customize("test", (task) -> task.nested("options", (nested) -> {
+			nested.comment("Task reason");
+			nested.raw("enabled = true");
+		}));
+		String written = write(build);
+		assertThat(written).contains("""
+				custom {
+					options {
+						enabled = true
+						// First line
+						// Second line
+						first = 1
+						second = 2
+					}
+				}
+				""");
+		assertThat(written).contains("""
+					options {
+						// Task reason
+						enabled = true
+					}
+				""");
+	}
+
+	@Test
+	void commentSnippetCanBeMixedWithExistingWriterSnippetAndRaw() {
+		GradleBuild build = new GradleBuild();
+		build.snippets().comment("Reason");
+		build.snippets().add((writer) -> writer.println("first = 1"));
+		build.snippets().raw("second = 2");
+		assertThat(write(build)).contains("""
+				// Reason
+
+				first = 1
+
+				second = 2
+				""");
+	}
 
 	@Test
 	void gradleBuildWithSnippet() {
@@ -86,6 +135,13 @@ public abstract class GradleBuildWriterTests {
 		GradleBuild build = new GradleBuild();
 		build.snippets().add(Set.of("com.example.CustomTask"), (writer) -> writer.println("custom { }"));
 		assertThat(write(build)).containsOnlyOnce("import com.example.CustomTask");
+	}
+
+	@Test
+	void rawFragmentPreservesInternalWhitespace() {
+		GradleBuild build = new GradleBuild();
+		build.extensions().customize("custom", (extension) -> extension.raw("text = \"\"\"first\nsecond\n\"\"\""));
+		assertThat(write(build)).contains("\ttext = \"\"\"first\nsecond\n\"\"\"\n");
 	}
 
 	protected abstract String write(GradleBuild build);

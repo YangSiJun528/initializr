@@ -24,12 +24,14 @@ import java.util.Set;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 
+import io.spring.initializr.generator.buildsystem.content.BuildFragment;
 import io.spring.initializr.generator.io.IndentingWriter;
 
 /**
  * A container for {@linkplain GradleSnippet Gradle snippets}.
  *
  * @author Stephane Nicoll
+ * @author Sijun Yang
  */
 public class GradleSnippetContainer {
 
@@ -74,6 +76,30 @@ public class GradleSnippetContainer {
 	 */
 	public void add(Consumer<IndentingWriter> writer) {
 		add(Collections.emptySet(), writer);
+	}
+
+	/**
+	 * Register a standalone fragment at the end of the build file.
+	 * @param fragment the fragment
+	 */
+	public void fragment(BuildFragment fragment) {
+		add((writer) -> GradleContentWriter.writeFragment(writer, fragment));
+	}
+
+	/**
+	 * Register a comment at the end of the build file.
+	 * @param text the comment text, without delimiters
+	 */
+	public void comment(String text) {
+		fragment(BuildFragment.comment(text));
+	}
+
+	/**
+	 * Register raw code at the end of the build file.
+	 * @param code code in the target DSL, without escaping
+	 */
+	public void raw(String code) {
+		fragment(BuildFragment.raw(code));
 	}
 
 }

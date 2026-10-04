@@ -27,10 +27,14 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
 
+import io.spring.initializr.generator.buildsystem.content.BuildFragment;
+import io.spring.initializr.generator.buildsystem.content.BuildValue;
+
 /**
  * A customization for a Gradle extension.
  *
  * @author Moritz Halbritter
+ * @author Sijun Yang
  */
 public class GradleExtension {
 
@@ -44,12 +48,15 @@ public class GradleExtension {
 
 	private final Set<String> importedTypes;
 
+	private final List<BuildFragment> fragments;
+
 	protected GradleExtension(Builder builder) {
 		this.name = builder.name;
 		this.attributes = List.copyOf(builder.attributes.values());
 		this.invocations = List.copyOf(builder.invocations);
 		this.nested = Collections.unmodifiableMap(resolve(builder.nested));
 		this.importedTypes = collectImportedTypes(builder);
+		this.fragments = List.copyOf(builder.fragments);
 	}
 
 	private static Set<String> collectImportedTypes(Builder builder) {
@@ -111,6 +118,10 @@ public class GradleExtension {
 		return this.importedTypes;
 	}
 
+	List<BuildFragment> getFragments() {
+		return this.fragments;
+	}
+
 	/**
 	 * Builder for {@link GradleExtension}.
 	 */
@@ -125,6 +136,8 @@ public class GradleExtension {
 		private final Map<String, Builder> nested = new LinkedHashMap<>();
 
 		private final Set<String> importedTypes = new HashSet<>();
+
+		private final List<BuildFragment> fragments = new ArrayList<>();
 
 		protected Builder(String name) {
 			this.name = name;
@@ -144,7 +157,25 @@ public class GradleExtension {
 		 * @param value the value
 		 */
 		public void attribute(String target, String value) {
+			attribute(target, BuildValue.raw(value));
+		}
+
+		/**
+		 * Set an extension attribute with an explicit text or raw value.
+		 * @param target the name of the attribute
+		 * @param value the value
+		 */
+		public void attribute(String target, BuildValue value) {
 			this.attributes.put(target, Attribute.set(target, value));
+		}
+
+		/**
+		 * Set an extension attribute to text quoted by the target writer.
+		 * @param target the name of the attribute
+		 * @param text the text
+		 */
+		public void attributeText(String target, String text) {
+			attribute(target, BuildValue.text(text));
 		}
 
 		/**
@@ -164,6 +195,15 @@ public class GradleExtension {
 		 * @param value the value to append
 		 */
 		public void append(String target, String value) {
+			append(target, BuildValue.raw(value));
+		}
+
+		/**
+		 * Append an explicit text or raw value to an extension attribute.
+		 * @param target the name of the attribute
+		 * @param value the value to append
+		 */
+		public void append(String target, BuildValue value) {
 			this.attributes.put(target, Attribute.append(target, value));
 		}
 
@@ -185,6 +225,39 @@ public class GradleExtension {
 		 */
 		public void invoke(String target, String... arguments) {
 			this.invocations.add(new Invocation(target, Arrays.asList(arguments)));
+		}
+
+		/**
+		 * Invoke an extension method with explicit text or raw arguments.
+		 * @param target the name of the method
+		 * @param arguments the arguments
+		 */
+		public void invokeValues(String target, BuildValue... arguments) {
+			this.invocations.add(new Invocation(target, arguments));
+		}
+
+		/**
+		 * Append a fragment after this extension's structured configuration.
+		 * @param fragment the fragment
+		 */
+		public void fragment(BuildFragment fragment) {
+			this.fragments.add(fragment);
+		}
+
+		/**
+		 * Append a comment after this extension's structured configuration.
+		 * @param text the comment text, without delimiters
+		 */
+		public void comment(String text) {
+			fragment(BuildFragment.comment(text));
+		}
+
+		/**
+		 * Append raw Gradle code after this extension's structured configuration.
+		 * @param code code in the target DSL, without escaping
+		 */
+		public void raw(String code) {
+			fragment(BuildFragment.raw(code));
 		}
 
 		/**

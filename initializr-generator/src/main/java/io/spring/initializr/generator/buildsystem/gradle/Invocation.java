@@ -18,17 +18,20 @@ package io.spring.initializr.generator.buildsystem.gradle;
 
 import java.util.List;
 
+import io.spring.initializr.generator.buildsystem.content.BuildValue;
+
 /**
  * An invocation of a method.
  *
  * @author Moritz Halbritter
  * @author Stephane Nicoll
+ * @author Sijun Yang
  */
 public class Invocation {
 
 	private final String target;
 
-	private final List<String> arguments;
+	private final List<BuildValue> arguments;
 
 	/**
 	 * Creates a new instance.
@@ -37,7 +40,17 @@ public class Invocation {
 	 */
 	public Invocation(String target, List<String> arguments) {
 		this.target = target;
-		this.arguments = List.copyOf(arguments);
+		this.arguments = arguments.stream().map(BuildValue::raw).toList();
+	}
+
+	/**
+	 * Create an invocation with explicit text or raw arguments.
+	 * @param target the target
+	 * @param arguments the arguments
+	 */
+	public Invocation(String target, BuildValue... arguments) {
+		this.target = target;
+		this.arguments = List.of(arguments);
 	}
 
 	/**
@@ -53,6 +66,10 @@ public class Invocation {
 	 * @return the method arguments
 	 */
 	public List<String> getArguments() {
+		return this.arguments.stream().map(BuildValue::content).toList();
+	}
+
+	List<BuildValue> getArgumentValues() {
 		return this.arguments;
 	}
 
