@@ -18,6 +18,7 @@ package io.spring.initializr.generator.buildsystem.maven;
 
 import io.spring.initializr.generator.buildsystem.content.BuildFragment;
 import io.spring.initializr.generator.buildsystem.content.BuildValue;
+import io.spring.initializr.generator.buildsystem.content.ContentWriter;
 import io.spring.initializr.generator.io.IndentingWriter;
 
 /**
@@ -25,34 +26,45 @@ import io.spring.initializr.generator.io.IndentingWriter;
  *
  * @author Sijun Yang
  */
-final class MavenContentWriter {
+final class MavenContentWriter implements ContentWriter {
+
+	static final MavenContentWriter INSTANCE = new MavenContentWriter();
 
 	private MavenContentWriter() {
 	}
 
 	static void writeValue(IndentingWriter writer, String name, BuildValue value) {
+		printValue(writer, name, value);
+		writer.println();
+	}
+
+	static void printValue(IndentingWriter writer, String name, BuildValue value) {
 		if (value.content().isEmpty()) {
-			writer.println("<%s/>".formatted(name));
+			writer.print("<%s/>".formatted(name));
 		}
 		else {
 			writer.print("<%s>".formatted(name));
 			writer.print((value.kind() == BuildValue.Kind.RAW) ? value.content() : encodeText(value.content()));
-			writer.println("</%s>".formatted(name));
+			writer.print("</%s>".formatted(name));
 		}
 	}
 
-	static void writeFragment(IndentingWriter writer, BuildFragment fragment) {
+	@Override
+	public void writeFragment(IndentingWriter writer, BuildFragment fragment) {
 		if (fragment.kind() == BuildFragment.Kind.COMMENT) {
-			String comment = fragment.content();
-			if (comment.contains("--") || comment.codePoints().anyMatch((character) -> !isXmlCharacter(character))) {
-				throw new IllegalArgumentException(
-						"Comment must contain valid XML characters and must not contain '--'");
-			}
-			writer.println("<!-- %s -->".formatted(comment));
+			writer.println(inlineComment(fragment.content()));
 		}
 		else {
 			writer.println(fragment.content());
 		}
+	}
+
+	@Override
+	public String inlineComment(String text) {
+		if (text.contains("--") || text.codePoints().anyMatch((character) -> !isXmlCharacter(character))) {
+			throw new IllegalArgumentException("Comment must contain valid XML characters and must not contain '--'");
+		}
+		return "<!-- %s -->".formatted(text);
 	}
 
 	private static boolean isXmlCharacter(int character) {

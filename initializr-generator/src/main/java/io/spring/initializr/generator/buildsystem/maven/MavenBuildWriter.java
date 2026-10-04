@@ -37,7 +37,6 @@ import io.spring.initializr.generator.buildsystem.DependencyScope;
 import io.spring.initializr.generator.buildsystem.MavenRepository;
 import io.spring.initializr.generator.buildsystem.MavenRepositoryContainer;
 import io.spring.initializr.generator.buildsystem.PropertyContainer;
-import io.spring.initializr.generator.buildsystem.content.BuildFragment;
 import io.spring.initializr.generator.buildsystem.content.BuildValue;
 import io.spring.initializr.generator.buildsystem.maven.MavenDistributionManagement.DeploymentRepository;
 import io.spring.initializr.generator.buildsystem.maven.MavenDistributionManagement.Relocation;
@@ -443,24 +442,27 @@ public class MavenBuildWriter {
 	}
 
 	private void writePluginConfiguration(IndentingWriter writer, @Nullable Configuration configuration) {
-		if (configuration == null || configuration.getContent().isEmpty()) {
+		if (configuration == null || configuration.getContent().entries().isEmpty()) {
 			return;
 		}
-		writeCollectionElement(writer, "configuration", configuration.getContent(), this::writeConfigurationEntry);
+		writeElement(writer, "configuration", () -> MavenContentWriter.INSTANCE.write(writer,
+				configuration.getContent(), this::printConfigurationSetting));
 	}
 
-	private void writeConfigurationEntry(IndentingWriter writer, Object entry) {
-		if (entry instanceof BuildFragment fragment) {
-			MavenContentWriter.writeFragment(writer, fragment);
+	private boolean printConfigurationSetting(IndentingWriter writer, Setting setting) {
+		if (setting.getContent() instanceof BuildValue value) {
+			MavenContentWriter.printValue(writer, setting.getName(), value);
 		}
-		else if (entry instanceof Setting setting) {
-			if (setting.getContent() instanceof BuildValue value) {
-				MavenContentWriter.writeValue(writer, setting.getName(), value);
+		else if (setting.getContent() instanceof Configuration nested) {
+			if (nested.getContent().entries().isEmpty()) {
+				return false;
 			}
-			else if (setting.getContent() instanceof Configuration nested) {
-				writeCollectionElement(writer, setting.getName(), nested.getContent(), this::writeConfigurationEntry);
-			}
+			writer.println("<" + setting.getName() + ">");
+			writer.indented(() -> MavenContentWriter.INSTANCE.write(writer, nested.getContent(),
+					this::printConfigurationSetting));
+			writer.print("</" + setting.getName() + ">");
 		}
+		return true;
 	}
 
 	private void writePluginExecution(IndentingWriter writer, Execution execution) {

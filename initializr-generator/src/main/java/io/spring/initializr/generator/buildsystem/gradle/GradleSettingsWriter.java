@@ -28,6 +28,7 @@ import org.springframework.util.Assert;
  *
  * @author Andy Wilkinson
  * @author Jean-Baptiste Nizet
+ * @author Sijun Yang
  * @see GroovyDslGradleSettingsWriter
  * @see KotlinDslGradleSettingsWriter
  */
@@ -40,6 +41,7 @@ public abstract class GradleSettingsWriter {
 	 * @param build the gradle build to write
 	 */
 	public final void writeTo(IndentingWriter writer, GradleBuild build) {
+		build.validatePluginRepositoryContent();
 		writePluginManagement(writer, build);
 		String artifact = build.getSettings().getArtifact();
 		if (artifact != null) {
@@ -65,7 +67,11 @@ public abstract class GradleSettingsWriter {
 		}
 		writer.println("repositories {");
 		writer.indented(() -> {
-			build.pluginRepositories().items().map(this::repositoryAsString).forEach(writer::println);
+			build.pluginRepositories()
+				.items()
+				.forEach((repository) -> GradleContentWriter.writeRepository(writer, repository,
+						build.getPluginRepositoryContent(repository.getId()), this::repositoryAsString,
+						this::urlAssignment));
 			writer.println("gradlePluginPortal()");
 		});
 		writer.println("}");

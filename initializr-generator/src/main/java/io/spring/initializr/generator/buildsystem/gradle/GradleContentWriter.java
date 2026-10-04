@@ -16,18 +16,44 @@
 
 package io.spring.initializr.generator.buildsystem.gradle;
 
+import java.util.function.Function;
+
+import io.spring.initializr.generator.buildsystem.MavenRepository;
 import io.spring.initializr.generator.buildsystem.content.BuildFragment;
 import io.spring.initializr.generator.buildsystem.content.BuildValue;
+import io.spring.initializr.generator.buildsystem.content.ContentSequence;
+import io.spring.initializr.generator.buildsystem.content.ContentWriter;
 import io.spring.initializr.generator.io.IndentingWriter;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Renders build content using Groovy or Kotlin syntax.
  *
  * @author Sijun Yang
  */
-final class GradleContentWriter {
+final class GradleContentWriter implements ContentWriter {
+
+	static final GradleContentWriter INSTANCE = new GradleContentWriter();
 
 	private GradleContentWriter() {
+	}
+
+	static void writeRepository(IndentingWriter writer, MavenRepository repository,
+			@Nullable ContentSequence<String> content, Function<MavenRepository, String> shorthand,
+			Function<String, String> urlAssignment) {
+		if (content == null) {
+			writer.println(shorthand.apply(repository));
+			return;
+		}
+		writer.println("maven {");
+		writer.indented(() -> INSTANCE.write(writer, content, (out, element) -> {
+			if (!element.equals("url")) {
+				throw new IllegalArgumentException("Unsupported repository content element: " + element);
+			}
+			out.print(urlAssignment.apply(repository.getUrl()));
+			return true;
+		}));
+		writer.println("}");
 	}
 
 	static String valueAsString(BuildValue value, char quote) {
@@ -55,7 +81,8 @@ final class GradleContentWriter {
 		return result.append(quote).toString();
 	}
 
-	static void writeFragment(IndentingWriter writer, BuildFragment fragment) {
+	@Override
+	public void writeFragment(IndentingWriter writer, BuildFragment fragment) {
 		if (fragment.kind() == BuildFragment.Kind.COMMENT) {
 			for (String line : fragment.content().split("\\r\\n|\\r|\\n", -1)) {
 				writer.println("// " + line);
@@ -64,6 +91,11 @@ final class GradleContentWriter {
 		else {
 			writer.println(fragment.content());
 		}
+	}
+
+	@Override
+	public String inlineComment(String text) {
+		return "// " + text;
 	}
 
 }

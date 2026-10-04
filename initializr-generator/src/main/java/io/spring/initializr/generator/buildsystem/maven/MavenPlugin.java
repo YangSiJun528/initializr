@@ -25,6 +25,7 @@ import java.util.function.Consumer;
 
 import io.spring.initializr.generator.buildsystem.content.BuildFragment;
 import io.spring.initializr.generator.buildsystem.content.BuildValue;
+import io.spring.initializr.generator.buildsystem.content.ContentSequence;
 import io.spring.initializr.generator.version.VersionReference;
 import org.jspecify.annotations.Nullable;
 
@@ -368,7 +369,18 @@ public class MavenPlugin {
 	 */
 	public static class ConfigurationBuilder {
 
-		private final List<Object> content = new ArrayList<>();
+		private final ContentSequence.Builder<Setting> content = new ContentSequence.Builder<>();
+
+		/**
+		 * Return the shared content extension point. Keys are parameter names; placement
+		 * defaults to the first parameter with that name. Occurrence indexes select
+		 * repeated parameters. Inline comments follow the closing tag of the parameter,
+		 * including nested parameters.
+		 * @return the content builder
+		 */
+		public ContentSequence.Builder<Setting> content() {
+			return this.content;
+		}
 
 		/**
 		 * Add the specified parameter with a single value.
@@ -387,7 +399,7 @@ public class MavenPlugin {
 		 * @return this for method chaining
 		 */
 		public ConfigurationBuilder addValue(String name, BuildValue value) {
-			this.content.add(new Setting(name, value));
+			this.content.add(name, new Setting(name, value));
 			return this;
 		}
 
@@ -407,7 +419,7 @@ public class MavenPlugin {
 		 * @return this for method chaining
 		 */
 		public ConfigurationBuilder fragment(BuildFragment fragment) {
-			this.content.add(fragment);
+			this.content.fragment(fragment);
 			return this;
 		}
 
@@ -439,7 +451,7 @@ public class MavenPlugin {
 		public ConfigurationBuilder add(String name, Consumer<ConfigurationBuilder> consumer) {
 			ConfigurationBuilder nestedConfiguration = new ConfigurationBuilder();
 			consumer.accept(nestedConfiguration);
-			this.content.add(new Setting(name, nestedConfiguration));
+			this.content.add(name, new Setting(name, nestedConfiguration));
 			return this;
 		}
 
@@ -455,14 +467,13 @@ public class MavenPlugin {
 		 * @see #add(String, Consumer)
 		 */
 		public ConfigurationBuilder configure(String name, Consumer<ConfigurationBuilder> consumer) {
-			Object value = this.content.stream()
-				.filter(Setting.class::isInstance)
-				.map(Setting.class::cast)
+			Object value = this.content.elements()
+				.stream()
 				.filter((candidate) -> candidate.getName().equals(name))
 				.findFirst()
 				.orElseGet(() -> {
 					Setting nestedSetting = new Setting(name, new ConfigurationBuilder());
-					this.content.add(nestedSetting);
+					this.content.add(name, nestedSetting);
 					return nestedSetting;
 				})
 				.getContent();
@@ -480,15 +491,14 @@ public class MavenPlugin {
 		 * @return a {@link Configuration}
 		 */
 		Configuration build() {
-			return new Configuration(this.content.stream().map(this::resolve).toList());
+			return new Configuration(this.content.build().map(this::resolve));
 		}
 
-		private Object resolve(Object entry) {
-			if (entry instanceof Setting setting
-					&& setting.getContent() instanceof ConfigurationBuilder configurationBuilder) {
+		private Setting resolve(Setting setting) {
+			if (setting.getContent() instanceof ConfigurationBuilder configurationBuilder) {
 				return new Setting(setting.getName(), configurationBuilder.build());
 			}
-			return entry;
+			return setting;
 		}
 
 	}
@@ -498,10 +508,10 @@ public class MavenPlugin {
 	 */
 	public static final class Configuration {
 
-		private final List<Object> content;
+		private final ContentSequence<Setting> content;
 
-		private Configuration(List<Object> content) {
-			this.content = List.copyOf(content);
+		private Configuration(ContentSequence<Setting> content) {
+			this.content = content;
 		}
 
 		/**
@@ -510,10 +520,14 @@ public class MavenPlugin {
 		 * @return the settings
 		 */
 		public List<Setting> getSettings() {
-			return this.content.stream().filter(Setting.class::isInstance).map(Setting.class::cast).toList();
+			return this.content.elements();
 		}
 
-		List<Object> getContent() {
+		/**
+		 * Return the complete content in output order.
+		 * @return the content sequence
+		 */
+		public ContentSequence<Setting> getContent() {
 			return this.content;
 		}
 

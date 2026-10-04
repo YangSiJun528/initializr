@@ -67,6 +67,7 @@ public abstract class GradleBuildWriter {
 	 * @param build the gradle build to write
 	 */
 	public final void writeTo(IndentingWriter writer, GradleBuild build) {
+		build.validateRepositoryContent();
 		GradleBuildSettings settings = build.getSettings();
 		writeImports(writer, build.tasks(), build.snippets(), build.extensions());
 		writeBuildscript(writer, build);
@@ -147,10 +148,27 @@ public abstract class GradleBuildWriter {
 	}
 
 	protected final void writeRepositories(IndentingWriter writer, GradleBuild build) {
-		writeNestedCollection(writer, "repositories", build.repositories().items().toList(), this::repositoryAsString);
+		List<MavenRepository> repositories = build.repositories().items().toList();
+		if (repositories.isEmpty()) {
+			return;
+		}
+		writer.println("repositories {");
+		writer.indented(() -> repositories.forEach((repository) -> GradleContentWriter.writeRepository(writer,
+				repository, build.getRepositoryContent(repository.getId()), this::repositoryAsString,
+				this::repositoryUrlAssignment)));
+		writer.println("}");
 	}
 
 	protected abstract String repositoryAsString(MavenRepository repository);
+
+	/**
+	 * Render the URL assignment inside an extended repository block.
+	 * @param url the repository URL
+	 * @return the assignment
+	 */
+	protected String repositoryUrlAssignment(String url) {
+		return "url = " + valueAsString(BuildValue.text(url));
+	}
 
 	private void writeProperties(IndentingWriter writer, PropertyContainer properties) {
 		if (properties.isEmpty()) {
@@ -272,25 +290,34 @@ public abstract class GradleBuildWriter {
 	}
 
 	private void writeExtensionCustomization(IndentingWriter writer, GradleExtension extension) {
-		writeCollection(writer, extension.getInvocations(), this::invocationAsString);
-		writeCollection(writer, extension.getAttributes(), this::attributeAsString);
-		extension.getNested().forEach((ignored, nested) -> {
-			writer.println(nested.getName() + " {");
-			writer.indented(() -> writeExtensionCustomization(writer, nested));
-			writer.println("}");
-		});
-		extension.getFragments().forEach((fragment) -> GradleContentWriter.writeFragment(writer, fragment));
+		GradleContentWriter.INSTANCE.write(writer, extension.getContent(), this::printCustomizationElement);
 	}
 
 	protected final void writeTaskCustomization(IndentingWriter writer, GradleTask task) {
-		writeCollection(writer, task.getInvocations(), this::invocationAsString);
-		writeCollection(writer, task.getAttributes(), this::attributeAsString);
-		task.getNested().forEach((property, nestedCustomization) -> {
-			writer.println(property + " {");
-			writer.indented(() -> writeTaskCustomization(writer, nestedCustomization));
-			writer.println("}");
-		});
-		task.getFragments().forEach((fragment) -> GradleContentWriter.writeFragment(writer, fragment));
+		GradleContentWriter.INSTANCE.write(writer, task.getContent(), this::printCustomizationElement);
+	}
+
+	private boolean printCustomizationElement(IndentingWriter writer, Object element) {
+		if (element instanceof Invocation invocation) {
+			writer.print(invocationAsString(invocation));
+		}
+		else if (element instanceof Attribute attribute) {
+			writer.print(attributeAsString(attribute));
+		}
+		else if (element instanceof GradleTask nestedTask) {
+			writer.println(nestedTask.getName() + " {");
+			writer.indented(() -> writeTaskCustomization(writer, nestedTask));
+			writer.print("}");
+		}
+		else if (element instanceof GradleExtension nestedExtension) {
+			writer.println(nestedExtension.getName() + " {");
+			writer.indented(() -> writeExtensionCustomization(writer, nestedExtension));
+			writer.print("}");
+		}
+		else {
+			throw new IllegalArgumentException("Unsupported Gradle content element: " + element);
+		}
+		return true;
 	}
 
 	private String attributeAsString(Attribute attribute) {

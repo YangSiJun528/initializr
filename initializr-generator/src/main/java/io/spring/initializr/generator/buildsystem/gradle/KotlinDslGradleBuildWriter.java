@@ -97,6 +97,11 @@ public class KotlinDslGradleBuildWriter extends GradleBuildWriter {
 	}
 
 	@Override
+	protected String repositoryUrlAssignment(String url) {
+		return "url = uri(" + valueAsString(BuildValue.text(url)) + ")";
+	}
+
+	@Override
 	protected void writeConfigurations(IndentingWriter writer, GradleConfigurationContainer configurations) {
 		configurations.names()
 			.forEach((configuration) -> writer.println("val " + configuration + " by configurations.creating"));

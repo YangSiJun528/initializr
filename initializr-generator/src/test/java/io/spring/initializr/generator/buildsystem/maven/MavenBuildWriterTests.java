@@ -48,6 +48,83 @@ import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException
 class MavenBuildWriterTests {
 
 	@Test
+	void commonContentPlacesCommentsAroundRepeatedSettingsAndOnTheirClosingLine() {
+		MavenBuild build = new MavenBuild();
+		build.plugins().add("com.example", "test-plugin", (plugin) -> plugin.configuration((configuration) -> {
+			configuration.configure("jvmFlags", (flags) -> {
+				flags.add("jvmFlag", "-Dfile.encoding=UTF-8");
+				flags.add("jvmFlag", "-XX:MaxRAMPercentage=75.0");
+				flags.content().before("jvmFlag", 1).comment("Container memory limit");
+				flags.content().inlineComment("jvmFlag", 1, "https://example.com/memory");
+				flags.content().after("jvmFlag", 1).raw("<custom/>");
+			});
+			configuration.content().first().comment("Configuration reason");
+			configuration.content().inlineComment("jvmFlags", "JVM flags");
+			configuration.content().last().write((writer) -> {
+				writer.println("<generated>");
+				writer.indented(() -> writer.println("<enabled>true</enabled>"));
+				writer.println("</generated>");
+			});
+		}));
+		String written = writePom(new MavenBuildWriter(), build);
+		assertThat(written).contains(
+				"<jvmFlag>-XX:MaxRAMPercentage=75.0</jvmFlag> <!-- https://example.com/memory -->\n",
+				"</jvmFlags> <!-- JVM flags -->\n");
+		NodeAssert flags = new NodeAssert(written).nodeAtPath("/project/build/plugins/plugin/configuration/jvmFlags");
+		assertThat(flags).nodesAtPath("node()[not(self::text())]")
+			.extracting(Node::getNodeName)
+			.containsExactly("jvmFlag", "#comment", "jvmFlag", "#comment", "custom");
+		assertThat(flags).nodeAtPath("jvmFlag[1]/following-sibling::node()[1]")
+			.matches((node) -> node.getNodeType() == Node.TEXT_NODE);
+		assertThat(new NodeAssert(written)).textAtPath("/project/build/plugins/plugin/configuration/generated/enabled")
+			.isEqualTo("true");
+	}
+
+	@Test
+	void settingsCanBeMovedWithoutLosingTheirCommentsOrNestedCustomization() {
+		MavenBuild build = new MavenBuild();
+		build.plugins().add("com.example", "test-plugin", (plugin) -> {
+			plugin.configuration((configuration) -> {
+				configuration.add("first", "1");
+				configuration.configure("nested", (nested) -> nested.add("value", "2"));
+				configuration.content().before("nested").comment("Nested reason");
+				configuration.content().moveBefore("nested", "first");
+			});
+			plugin.configuration((configuration) -> configuration.configure("nested",
+					(nested) -> nested.addRaw("license", "<![CDATA[first\nsecond]]>")));
+		});
+		String written = writePom(new MavenBuildWriter(), build);
+		assertThat(written).contains("<license><![CDATA[first\nsecond]]></license>");
+		NodeAssert configuration = new NodeAssert(written).nodeAtPath("/project/build/plugins/plugin/configuration");
+		assertThat(configuration).nodesAtPath("node()[not(self::text())]")
+			.extracting(Node::getNodeName)
+			.containsExactly("#comment", "nested", "first");
+		assertThat(configuration).textAtPath("nested/license").isEqualTo("first\nsecond");
+	}
+
+	@Test
+	void invalidInlineXmlCommentsAreRejected() {
+		MavenBuild build = new MavenBuild();
+		build.plugins().add("com.example", "test-plugin", (plugin) -> plugin.configuration((configuration) -> {
+			configuration.add("enabled", "true");
+			configuration.content().inlineComment("enabled", "invalid -- comment");
+		}));
+		assertThatIllegalArgumentException().isThrownBy(() -> writePom(new MavenBuildWriter(), build));
+	}
+
+	@Test
+	void emptyNestedConfigurationRemainsOmitted() {
+		MavenBuild build = new MavenBuild();
+		build.plugins().add("com.example", "test-plugin", (plugin) -> plugin.configuration((configuration) -> {
+			configuration.configure("empty", (nested) -> {
+			});
+			configuration.add("enabled", "true");
+		}));
+		assertThat(writePom(new MavenBuildWriter(), build)).contains("<enabled>true</enabled>")
+			.doesNotContain("<empty");
+	}
+
+	@Test
 	void pluginConfigurationPreservesCommentsRawXmlAndText() {
 		MavenBuild build = new MavenBuild();
 		build.plugins().add("com.example", "test-plugin", (plugin) -> plugin.configuration((configuration) -> {

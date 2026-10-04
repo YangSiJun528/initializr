@@ -20,15 +20,18 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.function.Consumer;
 
 import io.spring.initializr.generator.buildsystem.content.BuildFragment;
 import io.spring.initializr.generator.buildsystem.content.BuildValue;
+import io.spring.initializr.generator.buildsystem.content.ContentSequence;
 
 /**
  * A customization for a Gradle extension.
@@ -48,7 +51,7 @@ public class GradleExtension {
 
 	private final Set<String> importedTypes;
 
-	private final List<BuildFragment> fragments;
+	private final ContentSequence<Object> content;
 
 	protected GradleExtension(Builder builder) {
 		this.name = builder.name;
@@ -56,7 +59,9 @@ public class GradleExtension {
 		this.invocations = List.copyOf(builder.invocations);
 		this.nested = Collections.unmodifiableMap(resolve(builder.nested));
 		this.importedTypes = collectImportedTypes(builder);
-		this.fragments = List.copyOf(builder.fragments);
+		this.content = builder.content.build(Comparator.comparingInt(Builder::contentOrder))
+			.map((entry) -> (entry instanceof Builder nestedBuilder)
+					? Objects.requireNonNull(this.nested.get(nestedBuilder.name)) : entry);
 	}
 
 	private static Set<String> collectImportedTypes(Builder builder) {
@@ -118,8 +123,12 @@ public class GradleExtension {
 		return this.importedTypes;
 	}
 
-	List<BuildFragment> getFragments() {
-		return this.fragments;
+	/**
+	 * Return the complete body in output order.
+	 * @return the content sequence
+	 */
+	public ContentSequence<Object> getContent() {
+		return this.content;
 	}
 
 	/**
@@ -137,7 +146,7 @@ public class GradleExtension {
 
 		private final Set<String> importedTypes = new HashSet<>();
 
-		private final List<BuildFragment> fragments = new ArrayList<>();
+		private final ContentSequence.Builder<Object> content = new ContentSequence.Builder<>();
 
 		protected Builder(String name) {
 			this.name = name;
@@ -166,7 +175,9 @@ public class GradleExtension {
 		 * @param value the value
 		 */
 		public void attribute(String target, BuildValue value) {
-			this.attributes.put(target, Attribute.set(target, value));
+			Attribute attribute = Attribute.set(target, value);
+			this.attributes.put(target, attribute);
+			this.content.put("attribute:" + target, attribute);
 		}
 
 		/**
@@ -204,7 +215,9 @@ public class GradleExtension {
 		 * @param value the value to append
 		 */
 		public void append(String target, BuildValue value) {
-			this.attributes.put(target, Attribute.append(target, value));
+			Attribute attribute = Attribute.append(target, value);
+			this.attributes.put(target, attribute);
+			this.content.put("attribute:" + target, attribute);
 		}
 
 		/**
@@ -224,7 +237,9 @@ public class GradleExtension {
 		 * @param arguments the arguments
 		 */
 		public void invoke(String target, String... arguments) {
-			this.invocations.add(new Invocation(target, Arrays.asList(arguments)));
+			Invocation invocation = new Invocation(target, Arrays.asList(arguments));
+			this.invocations.add(invocation);
+			this.content.add("invocation:" + target, invocation);
 		}
 
 		/**
@@ -233,19 +248,38 @@ public class GradleExtension {
 		 * @param arguments the arguments
 		 */
 		public void invokeValues(String target, BuildValue... arguments) {
-			this.invocations.add(new Invocation(target, arguments));
+			Invocation invocation = new Invocation(target, arguments);
+			this.invocations.add(invocation);
+			this.content.add("invocation:" + target, invocation);
 		}
 
 		/**
-		 * Append a fragment after this extension's structured configuration.
+		 * Return the shared content extension point. Element keys are
+		 * {@code attribute:name}, {@code invocation:name} and {@code nested:name}.
+		 * Replacing an attribute or customizing a nested block retains its position.
+		 * @return the content builder
+		 */
+		public ContentSequence.Builder<Object> content() {
+			return this.content;
+		}
+
+		private static int contentOrder(Object entry) {
+			if (entry instanceof io.spring.initializr.generator.buildsystem.gradle.Invocation) {
+				return 0;
+			}
+			return (entry instanceof io.spring.initializr.generator.buildsystem.gradle.Attribute) ? 1 : 2;
+		}
+
+		/**
+		 * Insert a fragment at the current position, selecting insertion order.
 		 * @param fragment the fragment
 		 */
 		public void fragment(BuildFragment fragment) {
-			this.fragments.add(fragment);
+			this.content.fragment(fragment);
 		}
 
 		/**
-		 * Append a comment after this extension's structured configuration.
+		 * Insert a comment at the current position, selecting insertion order.
 		 * @param text the comment text, without delimiters
 		 */
 		public void comment(String text) {
@@ -253,7 +287,7 @@ public class GradleExtension {
 		}
 
 		/**
-		 * Append raw Gradle code after this extension's structured configuration.
+		 * Insert raw Gradle code at the current position, selecting insertion order.
 		 * @param code code in the target DSL, without escaping
 		 */
 		public void raw(String code) {
@@ -266,7 +300,9 @@ public class GradleExtension {
 		 * @param arguments the arguments
 		 */
 		public void invoke(String target, Collection<String> arguments) {
-			this.invocations.add(new Invocation(target, List.copyOf(arguments)));
+			Invocation invocation = new Invocation(target, List.copyOf(arguments));
+			this.invocations.add(invocation);
+			this.content.add("invocation:" + target, invocation);
 		}
 
 		/**
@@ -299,7 +335,9 @@ public class GradleExtension {
 		 * @param customizer a {@link Consumer} to customize the nested extension
 		 */
 		public void nested(String name, Consumer<Builder> customizer) {
-			customizer.accept(this.nested.computeIfAbsent(name, (ignored) -> new Builder(name)));
+			Builder nestedBuilder = this.nested.computeIfAbsent(name, (ignored) -> new Builder(name));
+			this.content.put("nested:" + name, nestedBuilder);
+			customizer.accept(nestedBuilder);
 		}
 
 		/**

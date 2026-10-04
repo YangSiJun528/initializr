@@ -83,7 +83,7 @@ public class GradleSnippetContainer {
 	 * @param fragment the fragment
 	 */
 	public void fragment(BuildFragment fragment) {
-		add((writer) -> GradleContentWriter.writeFragment(writer, fragment));
+		add((writer) -> GradleContentWriter.INSTANCE.writeFragment(writer, fragment));
 	}
 
 	/**

@@ -18,9 +18,11 @@ package io.spring.initializr.generator.buildsystem.gradle;
 
 import java.util.Set;
 
+import io.spring.initializr.generator.buildsystem.MavenRepository;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
 
 /**
  * Common tests for {@link GradleBuildWriter} implementations.
@@ -29,6 +31,116 @@ import static org.assertj.core.api.Assertions.assertThat;
  * @author Sijun Yang
  */
 public abstract class GradleBuildWriterTests {
+
+	@Test
+	void contentIsInterleavedWithStructuredElementsAndNestedClosingComments() {
+		GradleBuild build = new GradleBuild();
+		build.extensions().customize("custom", (extension) -> {
+			extension.attribute("first", "1");
+			extension.content().comment("between");
+			extension.invoke("reset");
+			extension.content().raw("middle = 2");
+			extension.nested("options", (nested) -> nested.attribute("enabled", "true"));
+			extension.content().inlineComment("nested:options", "options reason");
+			extension.attribute("last", "3");
+		});
+		String written = write(build);
+		assertThat(written.indexOf("first = 1")).isLessThan(written.indexOf("// between"));
+		assertThat(written.indexOf("// between")).isLessThan(written.indexOf("reset"));
+		assertThat(written.indexOf("reset")).isLessThan(written.indexOf("middle = 2"));
+		assertThat(written).contains("""
+					options {
+						enabled = true
+					} // options reason
+					last = 3
+				""");
+	}
+
+	@Test
+	void anchoredPlacementPreservesLegacyGroupingWithoutInsertionOrder() {
+		GradleBuild build = new GradleBuild();
+		build.tasks().customize("test", (task) -> {
+			task.attribute("enabled", "true");
+			task.invoke("reset");
+			task.content().before("attribute:enabled").comment("before enabled");
+			task.content().inlineComment("attribute:enabled", "reason");
+		});
+		String written = write(build);
+		assertThat(written.indexOf("reset")).isLessThan(written.indexOf("// before enabled"));
+		assertThat(written).contains("// before enabled\n\tenabled = true // reason\n");
+	}
+
+	@Test
+	void taskMovementAndRepeatedCustomizationPreserveContentAndUpdatedAttributes() {
+		GradleBuild build = new GradleBuild();
+		build.tasks().customize("test", (task) -> {
+			task.content().inInsertionOrder();
+			task.attribute("first", "1");
+			task.attribute("last", "2");
+			task.nested("options", (nested) -> nested.content().first().comment("nested first"));
+			task.content().moveBefore("nested:options", "attribute:first");
+			task.content().after("nested:options").write((writer) -> writer.println("afterOptions = true"));
+		});
+		build.tasks().customize("test", (task) -> {
+			task.attribute("first", "3");
+			task.nested("options", (nested) -> nested.attribute("enabled", "true"));
+		});
+		assertThat(write(build)).contains("""
+					options {
+						// nested first
+						enabled = true
+					}
+					afterOptions = true
+					first = 3
+					last = 2
+				""");
+	}
+
+	@Test
+	void repositoryContentCanGenerateCredentialsInTheRepositoryScope() {
+		GradleBuild build = new GradleBuild();
+		build.repositoryContent("private").first().comment("private repository");
+		build.repositoryContent("private").inlineComment("url", "repository URL");
+		build.repositoryContent("private").after("url").write((writer) -> {
+			writer.println("credentials {");
+			writer.indented(() -> {
+				writer.println("username = providers.gradleProperty(\"repoUsername\").get()");
+				writer.println("password = providers.gradleProperty(\"repoPassword\").get()");
+			});
+			writer.println("}");
+		});
+		build.repositories().add(MavenRepository.withIdAndUrl("private", "https://artifacts.example.com"));
+		assertThat(write(build)).contains("""
+				repositories {
+					maven {
+						// private repository
+				""").contains(" // repository URL\n").contains("""
+						credentials {
+							username = providers.gradleProperty("repoUsername").get()
+							password = providers.gradleProperty("repoPassword").get()
+						}
+					}
+				}
+				""");
+	}
+
+	@Test
+	void repositoryContentUsesTheCurrentUrlAndExpandsCentralShorthand() {
+		GradleBuild build = new GradleBuild();
+		build.repositories().add("maven-central");
+		build.repositoryContent("maven-central").last().raw("name = \"customCentral\"");
+		assertThat(write(build)).contains("maven {", "repo.maven.apache.org/maven2", "name = \"customCentral\"")
+			.doesNotContain("mavenCentral()");
+		build.repositories().add(MavenRepository.withIdAndUrl("maven-central", "https://mirror.example.com"));
+		assertThat(write(build)).contains("https://mirror.example.com").doesNotContain("repo.maven.apache.org");
+	}
+
+	@Test
+	void unregisteredRepositoryContentIsRejected() {
+		GradleBuild build = new GradleBuild();
+		build.repositoryContent("missing").raw("credentials { }");
+		assertThatIllegalArgumentException().isThrownBy(() -> write(build)).withMessageContaining("missing");
+	}
 
 	@Test
 	void commentsAndRawFragmentsAreWrittenInsideNestedBlocks() {
