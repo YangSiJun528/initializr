@@ -33,6 +33,11 @@ public class KotlinDslGradleSettingsWriter extends GradleSettingsWriter {
 
 	@Override
 	protected String urlAssignment(String url) {
+		return "url = uri(\"" + url + "\")";
+	}
+
+	@Override
+	protected String repositoryUrlAssignment(String url) {
 		return "url = uri(" + GradleContentWriter.valueAsString(BuildValue.text(url), '"') + ")";
 	}
 

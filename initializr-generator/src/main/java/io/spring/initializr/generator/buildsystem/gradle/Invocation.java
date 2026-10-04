@@ -70,6 +70,9 @@ public class Invocation {
 	}
 
 	List<BuildValue> getArgumentValues() {
+		if (this.arguments.stream().allMatch((value) -> value.kind() == BuildValue.Kind.RAW)) {
+			return getArguments().stream().map(BuildValue::raw).toList();
+		}
 		return this.arguments;
 	}
 

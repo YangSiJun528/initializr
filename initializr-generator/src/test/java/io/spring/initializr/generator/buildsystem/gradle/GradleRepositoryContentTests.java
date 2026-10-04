@@ -34,6 +34,35 @@ import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException
 class GradleRepositoryContentTests {
 
 	@Test
+	void repositoriesWithoutContentPreserveOriginalUrlInterpolation() {
+		GradleBuild build = new GradleBuild();
+		MavenRepository repository = MavenRepository.withIdAndUrl("private", "${repoUrl}").build();
+		build.repositories().add(repository);
+		build.pluginRepositories().add(repository);
+		StringWriter groovy = new StringWriter();
+		new GroovyDslGradleBuildWriter().writeTo(new IndentingWriter(groovy), build);
+		StringWriter kotlin = new StringWriter();
+		new KotlinDslGradleBuildWriter().writeTo(new IndentingWriter(kotlin), build);
+		assertThat(groovy.toString()).contains("maven { url = '${repoUrl}' }");
+		assertThat(kotlin.toString()).contains("maven { url = uri(\"${repoUrl}\") }");
+		assertThat(write(new GroovyDslGradleSettingsWriter(), build)).contains("maven { url = '${repoUrl}' }");
+		assertThat(write(new KotlinDslGradleSettingsWriter(), build)).contains("maven { url = uri(\"${repoUrl}\") }");
+	}
+
+	@Test
+	void legacyGroovySettingsQuoteOverrideStillAppliesToRepositoryUrls() {
+		GradleBuild build = new GradleBuild();
+		build.pluginRepositories().add(MavenRepository.withIdAndUrl("private", "https://plugins.example.com"));
+		GradleSettingsWriter writer = new GroovyDslGradleSettingsWriter() {
+			@Override
+			protected String wrapWithQuotes(String value) {
+				return "\"" + value + "\"";
+			}
+		};
+		assertThat(write(writer, build)).contains("maven { url = \"https://plugins.example.com\" }");
+	}
+
+	@Test
 	void extendedRepositoryUrlsAreQuotedForTheTargetDsl() {
 		GradleBuild build = new GradleBuild();
 		MavenRepository repository = MavenRepository.withIdAndUrl("private", "https://example.com/a'b/$repo").build();

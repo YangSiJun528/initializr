@@ -53,12 +53,15 @@ public class GradleExtension {
 
 	private final ContentSequence<Object> content;
 
+	private final boolean customContent;
+
 	protected GradleExtension(Builder builder) {
 		this.name = builder.name;
 		this.attributes = List.copyOf(builder.attributes.values());
 		this.invocations = List.copyOf(builder.invocations);
 		this.nested = Collections.unmodifiableMap(resolve(builder.nested));
 		this.importedTypes = collectImportedTypes(builder);
+		this.customContent = builder.customContent;
 		this.content = builder.content.build(Comparator.comparingInt(Builder::contentOrder))
 			.map((entry) -> (entry instanceof Builder nestedBuilder)
 					? Objects.requireNonNull(this.nested.get(nestedBuilder.name)) : entry);
@@ -131,6 +134,10 @@ public class GradleExtension {
 		return this.content;
 	}
 
+	boolean hasCustomContent() {
+		return this.customContent;
+	}
+
 	/**
 	 * Builder for {@link GradleExtension}.
 	 */
@@ -147,6 +154,8 @@ public class GradleExtension {
 		private final Set<String> importedTypes = new HashSet<>();
 
 		private final ContentSequence.Builder<Object> content = new ContentSequence.Builder<>();
+
+		private boolean customContent;
 
 		protected Builder(String name) {
 			this.name = name;
@@ -257,9 +266,12 @@ public class GradleExtension {
 		 * Return the shared content extension point. Element keys are
 		 * {@code attribute:name}, {@code invocation:name} and {@code nested:name}.
 		 * Replacing an attribute or customizing a nested block retains its position.
+		 * Calling this method opts into content-based rendering for this block. Without
+		 * it, the writer continues to use the existing structured getters.
 		 * @return the content builder
 		 */
 		public ContentSequence.Builder<Object> content() {
+			this.customContent = true;
 			return this.content;
 		}
 
@@ -275,7 +287,7 @@ public class GradleExtension {
 		 * @param fragment the fragment
 		 */
 		public void fragment(BuildFragment fragment) {
-			this.content.fragment(fragment);
+			content().fragment(fragment);
 		}
 
 		/**

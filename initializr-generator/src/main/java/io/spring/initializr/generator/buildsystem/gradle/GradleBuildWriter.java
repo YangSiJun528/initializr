@@ -290,11 +290,31 @@ public abstract class GradleBuildWriter {
 	}
 
 	private void writeExtensionCustomization(IndentingWriter writer, GradleExtension extension) {
-		GradleContentWriter.INSTANCE.write(writer, extension.getContent(), this::printCustomizationElement);
+		if (extension.hasCustomContent()) {
+			GradleContentWriter.INSTANCE.write(writer, extension.getContent(), this::printCustomizationElement);
+			return;
+		}
+		writeCollection(writer, extension.getInvocations(), this::invocationAsString);
+		writeCollection(writer, extension.getAttributes(), this::attributeAsString);
+		extension.getNested().forEach((ignored, nested) -> {
+			writer.println(nested.getName() + " {");
+			writer.indented(() -> writeExtensionCustomization(writer, nested));
+			writer.println("}");
+		});
 	}
 
 	protected final void writeTaskCustomization(IndentingWriter writer, GradleTask task) {
-		GradleContentWriter.INSTANCE.write(writer, task.getContent(), this::printCustomizationElement);
+		if (task.hasCustomContent()) {
+			GradleContentWriter.INSTANCE.write(writer, task.getContent(), this::printCustomizationElement);
+			return;
+		}
+		writeCollection(writer, task.getInvocations(), this::invocationAsString);
+		writeCollection(writer, task.getAttributes(), this::attributeAsString);
+		task.getNested().forEach((property, nested) -> {
+			writer.println(property + " {");
+			writer.indented(() -> writeTaskCustomization(writer, nested));
+			writer.println("}");
+		});
 	}
 
 	private boolean printCustomizationElement(IndentingWriter writer, Object element) {
@@ -322,7 +342,8 @@ public abstract class GradleBuildWriter {
 
 	private String attributeAsString(Attribute attribute) {
 		String separator = (attribute.getType() == Attribute.Type.SET) ? "=" : "+=";
-		return "%s %s %s".formatted(attribute.getName(), separator, valueAsString(attribute.getContent()));
+		BuildValue value = new BuildValue(attribute.getContent().kind(), attribute.getValue());
+		return "%s %s %s".formatted(attribute.getName(), separator, valueAsString(value));
 	}
 
 	/**

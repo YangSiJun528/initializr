@@ -71,7 +71,7 @@ public abstract class GradleSettingsWriter {
 				.items()
 				.forEach((repository) -> GradleContentWriter.writeRepository(writer, repository,
 						build.getPluginRepositoryContent(repository.getId()), this::repositoryAsString,
-						this::urlAssignment));
+						this::repositoryUrlAssignment));
 			writer.println("gradlePluginPortal()");
 		});
 		writer.println("}");
@@ -112,5 +112,15 @@ public abstract class GradleSettingsWriter {
 	protected abstract String wrapWithQuotes(String value);
 
 	protected abstract String urlAssignment(String url);
+
+	/**
+	 * Render a URL assignment for a repository using the content extension point. The
+	 * default delegates to the existing URL renderer for custom settings writers.
+	 * @param url the repository URL
+	 * @return the assignment
+	 */
+	protected String repositoryUrlAssignment(String url) {
+		return urlAssignment(url);
+	}
 
 }

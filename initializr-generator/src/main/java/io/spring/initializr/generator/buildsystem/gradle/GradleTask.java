@@ -51,12 +51,15 @@ public class GradleTask {
 
 	private final ContentSequence<Object> content;
 
+	private final boolean customContent;
+
 	protected GradleTask(Builder builder) {
 		this.name = builder.name;
 		this.type = builder.type;
 		this.attributes = List.copyOf(builder.attributes.values());
 		this.invocations = List.copyOf(builder.invocations);
 		this.nested = Collections.unmodifiableMap(resolve(builder.nested));
+		this.customContent = builder.customContent;
 		this.content = builder.content.build(Comparator.comparingInt(Builder::contentOrder))
 			.map((entry) -> (entry instanceof Builder nestedBuilder)
 					? Objects.requireNonNull(this.nested.get(nestedBuilder.name)) : entry);
@@ -117,6 +120,10 @@ public class GradleTask {
 		return this.content;
 	}
 
+	boolean hasCustomContent() {
+		return this.customContent;
+	}
+
 	/**
 	 * Builder for {@link GradleTask}.
 	 */
@@ -133,6 +140,8 @@ public class GradleTask {
 		private final Map<String, Builder> nested = new LinkedHashMap<>();
 
 		private final ContentSequence.Builder<Object> content = new ContentSequence.Builder<>();
+
+		private boolean customContent;
 
 		/**
 		 * Creates a new instance.
@@ -225,9 +234,12 @@ public class GradleTask {
 		 * Return the shared content extension point. Element keys are
 		 * {@code attribute:name}, {@code invocation:name} and {@code nested:name}.
 		 * Replacing an attribute or customizing a nested block retains its position.
+		 * Calling this method opts into content-based rendering for this block. Without
+		 * it, the writer continues to use the existing structured getters.
 		 * @return the content builder
 		 */
 		public ContentSequence.Builder<Object> content() {
+			this.customContent = true;
 			return this.content;
 		}
 
@@ -243,7 +255,7 @@ public class GradleTask {
 		 * @param fragment the fragment
 		 */
 		public void fragment(BuildFragment fragment) {
-			this.content.fragment(fragment);
+			content().fragment(fragment);
 		}
 
 		/**

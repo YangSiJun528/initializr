@@ -16,7 +16,10 @@
 
 package io.spring.initializr.generator.buildsystem.gradle;
 
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.stream.Stream;
 
 import io.spring.initializr.generator.buildsystem.MavenRepository;
 import org.junit.jupiter.api.Test;
@@ -31,6 +34,114 @@ import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException
  * @author Sijun Yang
  */
 public abstract class GradleBuildWriterTests {
+
+	@Test
+	void legacyExtensionGetterOverridesArePreserved() {
+		GradleExtension nested = new GradleExtension(new GradleExtension.Builder("options")) {
+			@Override
+			public List<Attribute> getAttributes() {
+				return List.of(Attribute.set("childValue", "2"));
+			}
+		};
+		GradleExtension.Builder builder = new GradleExtension.Builder("legacy");
+		builder.attribute("ignored", "false");
+		GradleExtension extension = new GradleExtension(builder) {
+			@Override
+			public List<Attribute> getAttributes() {
+				return List.of(new Attribute("enabled", "false", Attribute.Type.SET) {
+					@Override
+					public String getValue() {
+						return "true";
+					}
+				});
+			}
+
+			@Override
+			public List<Invocation> getInvocations() {
+				return List.of(new Invocation("configure", List.of("0")) {
+					@Override
+					public List<String> getArguments() {
+						return List.of("42");
+					}
+				});
+			}
+
+			@Override
+			public Map<String, GradleExtension> getNested() {
+				return Map.of("mapKey", nested);
+			}
+		};
+		GradleBuild build = new GradleBuild() {
+			@Override
+			public GradleExtensionContainer extensions() {
+				return new GradleExtensionContainer() {
+					@Override
+					public Stream<GradleExtension> values() {
+						return Stream.of(extension);
+					}
+				};
+			}
+		};
+		String written = write(build);
+		assertThat(written).containsPattern("configure(?:\\(42\\)| 42)");
+		assertThat(written).contains("""
+					enabled = true
+					options {
+						childValue = 2
+					}
+				""").doesNotContain("ignored = false");
+	}
+
+	@Test
+	@SuppressWarnings("removal")
+	void legacyTaskGetterOverridesPreserveNestedPropertyNamesAndArguments() {
+		GradleTask nested = new GradleTask(new GradleTask.Builder("ignoredChildName")) {
+			@Override
+			public List<GradleTask.Attribute> getAttributes() {
+				return List.of(GradleTask.Attribute.set("childValue", "2"));
+			}
+		};
+		GradleTask task = new GradleTask(new GradleTask.Builder("legacy")) {
+			@Override
+			public List<GradleTask.Attribute> getAttributes() {
+				return List.of(GradleTask.Attribute.set("enabled", "true"));
+			}
+
+			@Override
+			public List<GradleTask.Invocation> getInvocations() {
+				return List.of(new GradleTask.Invocation("configure", List.of("0")) {
+					@Override
+					public List<String> getArguments() {
+						return List.of("42");
+					}
+				});
+			}
+
+			@Override
+			public Map<String, GradleTask> getNested() {
+				return Map.of("options", nested);
+			}
+		};
+		GradleBuild build = new GradleBuild() {
+			@Override
+			public GradleTaskContainer tasks() {
+				return new GradleTaskContainer() {
+					@Override
+					public Stream<GradleTask> values() {
+						return Stream.of(task);
+					}
+				};
+			}
+		};
+		String written = write(build);
+		assertThat(written).containsPattern("configure(?:\\(42\\)| 42)");
+		assertThat(written).contains("""
+					enabled = true
+					options {
+						childValue = 2
+					}
+				""").doesNotContain("ignoredChildName");
+	}
 
 	@Test
 	void contentIsInterleavedWithStructuredElementsAndNestedClosingComments() {

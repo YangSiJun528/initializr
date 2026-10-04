@@ -200,9 +200,8 @@ public class GroovyDslGradleBuildWriter extends GradleBuildWriter {
 
 	@Override
 	protected String invocationAsString(Invocation invocation) {
-		String arguments = (invocation.getArguments().isEmpty()) ? "()"
-				: " " + String.join(", ", invocation.getArgumentValues().stream().map(this::valueAsString).toList());
-		return invocation.getTarget() + arguments;
+		List<String> arguments = invocation.getArgumentValues().stream().map(this::valueAsString).toList();
+		return invocation.getTarget() + (arguments.isEmpty() ? "()" : " " + String.join(", ", arguments));
 	}
 
 	@Override

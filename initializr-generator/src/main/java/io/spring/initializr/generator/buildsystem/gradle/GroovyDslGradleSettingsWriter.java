@@ -33,6 +33,11 @@ public class GroovyDslGradleSettingsWriter extends GradleSettingsWriter {
 
 	@Override
 	protected String urlAssignment(String url) {
+		return "url = " + wrapWithQuotes(url);
+	}
+
+	@Override
+	protected String repositoryUrlAssignment(String url) {
 		return "url = " + GradleContentWriter.valueAsString(BuildValue.text(url), '\'');
 	}
 
