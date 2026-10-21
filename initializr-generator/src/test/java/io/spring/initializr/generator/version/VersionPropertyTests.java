@@ -37,6 +37,12 @@ class VersionPropertyTests {
 	}
 
 	@Test
+	void testInvalidPropertyEmpty() {
+		assertThatIllegalArgumentException().isThrownBy(() -> VersionProperty.of(""))
+			.withMessage("'property' must not be empty");
+	}
+
+	@Test
 	void testInvalidPropertyUpperCase() {
 		assertThatIllegalArgumentException().isThrownBy(() -> VersionProperty.of("Spring-boot.version"));
 	}

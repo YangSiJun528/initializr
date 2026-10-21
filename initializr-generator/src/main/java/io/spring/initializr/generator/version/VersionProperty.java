@@ -93,6 +93,9 @@ public final class VersionProperty implements Serializable, Comparable<VersionPr
 	}
 
 	private static String validateFormat(String property) {
+		if (property.isEmpty()) {
+			throw new IllegalArgumentException("'property' must not be empty");
+		}
 		for (char c : property.toCharArray()) {
 			if (Character.isUpperCase(c)) {
 				throw new IllegalArgumentException("Invalid property '" + property + "', must not contain upper case");
