@@ -101,6 +101,39 @@ class InitializrMetadataTests {
 	}
 
 	@Test
+	void invalidBomCompatibilityRangeMappingNoVersion() {
+		InitializrMetadata metadata = initializeMetadata();
+		BillOfMaterials bom = BillOfMaterials.create("org.acme", "foo-bom", "1.0.0.RELEASE");
+		bom.getMappings().add(Mapping.create("[1.2.0.RELEASE,1.3.0.M1)", null));
+		metadata.getConfiguration().getEnv().getBoms().put("foo-bom", bom);
+		assertThatExceptionOfType(InvalidInitializrMetadataException.class).isThrownBy(metadata::validate)
+			.withMessageContaining("Version is mandatory")
+			.withMessageContaining("foo-bom");
+	}
+
+	@Test
+	void invalidBomCompatibilityRangeMappingEmptyVersion() {
+		InitializrMetadata metadata = initializeMetadata();
+		BillOfMaterials bom = BillOfMaterials.create("org.acme", "foo-bom", "1.0.0.RELEASE");
+		bom.getMappings().add(Mapping.create("[1.2.0.RELEASE,1.3.0.M1)", ""));
+		metadata.getConfiguration().getEnv().getBoms().put("foo-bom", bom);
+		assertThatExceptionOfType(InvalidInitializrMetadataException.class).isThrownBy(metadata::validate)
+			.withMessageContaining("Version is mandatory")
+			.withMessageContaining("foo-bom");
+	}
+
+	@Test
+	void invalidBomCompatibilityRangeMappingBlankVersion() {
+		InitializrMetadata metadata = initializeMetadata();
+		BillOfMaterials bom = BillOfMaterials.create("org.acme", "foo-bom", "1.0.0.RELEASE");
+		bom.getMappings().add(Mapping.create("[1.2.0.RELEASE,1.3.0.M1)", " "));
+		metadata.getConfiguration().getEnv().getBoms().put("foo-bom", bom);
+		assertThatExceptionOfType(InvalidInitializrMetadataException.class).isThrownBy(metadata::validate)
+			.withMessageContaining("Version is mandatory")
+			.withMessageContaining("foo-bom");
+	}
+
+	@Test
 	void invalidBomCompatibilityRangeMappingUnknownRepo() {
 		InitializrMetadata metadata = initializeMetadata();
 		BillOfMaterials bom = BillOfMaterials.create("org.acme", "foo-bom");

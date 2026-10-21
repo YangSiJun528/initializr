@@ -19,6 +19,7 @@ import io.spring.initializr.generator.version.VersionRange;
 import org.jspecify.annotations.Nullable;
 
 import org.springframework.util.Assert;
+import org.springframework.util.StringUtils;
 
 /**
  * Define a Bill Of Materials to be represented in the generated project if a dependency
@@ -161,6 +162,12 @@ public class BillOfMaterials {
 		if (this.version == null && this.mappings.isEmpty()) {
 			throw new InvalidInitializrMetadataException("No version available for " + this);
 		}
+		this.mappings.forEach((mapping) -> {
+			if (!StringUtils.hasText(mapping.version)) {
+				throw new InvalidInitializrMetadataException(
+						"Version is mandatory, invalid version mapping for " + this);
+			}
+		});
 		updateCompatibilityRange(VersionParser.DEFAULT);
 	}
 
