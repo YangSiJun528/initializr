@@ -234,7 +234,8 @@ public class MavenBuildAssert extends AbstractTextAssert<MavenBuildAssert> {
 	 * @return {@code this} assertion object
 	 */
 	public MavenBuildAssert hasBomsSize(int size) {
-		this.pom.nodesAtPath("/project/dependencyManagement/dependencies/dependency").hasSize(size);
+		this.pom.nodesAtPath("/project/dependencyManagement/dependencies/dependency")
+			.areExactly(size, new Condition<>((candidate) -> toBom(candidate) != null, "bom"));
 		return this;
 	}
 
