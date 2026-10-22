@@ -278,11 +278,7 @@ public class KotlinSourceCodeWriter implements SourceCodeWriter<KotlinSourceCode
 	}
 
 	private boolean isGenericType(String name) {
-		if (!name.endsWith(">")) {
-			return false;
-		}
-		String unqualifiedName = getUnqualifiedName(name);
-		return unqualifiedName.contains("<");
+		return name.endsWith(">") && name.contains("<");
 	}
 
 	private Set<String> determinePropertyImports(KotlinPropertyDeclaration propertyDeclaration) {
@@ -307,17 +303,23 @@ public class KotlinSourceCodeWriter implements SourceCodeWriter<KotlinSourceCode
 	}
 
 	private String getUnqualifiedName(String name) {
-		if (!name.contains(".")) {
+		int separator = rawType(name).lastIndexOf('.');
+		if (separator == -1) {
 			return name;
 		}
-		return name.substring(name.lastIndexOf(".") + 1);
+		return name.substring(separator + 1);
 	}
 
 	private boolean isImportCandidate(CompilationUnit<?> compilationUnit, @Nullable String name) {
-		if (name == null || !name.contains(".")) {
+		if (name == null) {
 			return false;
 		}
-		String packageName = name.substring(0, name.lastIndexOf('.'));
+		name = rawType(name);
+		int separator = name.lastIndexOf('.');
+		if (separator == -1) {
+			return false;
+		}
+		String packageName = name.substring(0, separator);
 		return !"java.lang".equals(packageName) && !compilationUnit.getPackageName().equals(packageName);
 	}
 

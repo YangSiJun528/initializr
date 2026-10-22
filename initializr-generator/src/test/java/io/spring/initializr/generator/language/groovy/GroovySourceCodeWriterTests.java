@@ -397,6 +397,28 @@ class GroovySourceCodeWriterTests {
 	}
 
 	@Test
+	void fieldImportWithQualifiedGenericArgument() throws IOException {
+		GroovySourceCode sourceCode = new GroovySourceCode();
+		GroovyCompilationUnit compilationUnit = sourceCode.createCompilationUnit("com.example", "Test");
+		GroovyTypeDeclaration test = compilationUnit.createTypeDeclaration("Test");
+		test.addFieldDeclaration(GroovyFieldDeclaration.field("testString")
+			.modifiers(Modifier.PUBLIC)
+			.returning("com.another.One<java.lang.String>"));
+		String content = writeSingleTypeAsString(sourceCode, "com/example/Test.groovy");
+		assertThat(content).isEqualToIgnoringWhitespace("""
+				package com.example
+
+				import com.another.One
+
+				class Test {
+
+					public One<java.lang.String> testString
+
+				}
+				""");
+	}
+
+	@Test
 	void methodParameterWithGenerics() throws IOException {
 		GroovySourceCode sourceCode = new GroovySourceCode();
 		GroovyCompilationUnit compilationUnit = sourceCode.createCompilationUnit("com.example", "Test");

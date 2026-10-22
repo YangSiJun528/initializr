@@ -548,6 +548,29 @@ class KotlinSourceCodeWriterTests {
 	}
 
 	@Test
+	void fieldImportWithQualifiedGenericArgument() throws IOException {
+		KotlinSourceCode sourceCode = new KotlinSourceCode();
+		KotlinCompilationUnit compilationUnit = sourceCode.createCompilationUnit("com.example", "Test");
+		KotlinTypeDeclaration test = compilationUnit.createTypeDeclaration("Test");
+		test.addPropertyDeclaration(KotlinPropertyDeclaration.var("testString")
+			.modifiers(KotlinModifier.PUBLIC)
+			.returning("com.another.One<kotlin.String>")
+			.empty());
+		String content = writeSingleTypeAsString(sourceCode, "com/example/Test.kt");
+		assertThat(content).isEqualToIgnoringWhitespace("""
+				package com.example
+
+				import com.another.One
+
+				class Test {
+
+				    var testString: One<kotlin.String>
+
+				}
+				""");
+	}
+
+	@Test
 	void methodParameterWithGenerics() throws IOException {
 		KotlinSourceCode sourceCode = new KotlinSourceCode();
 		KotlinCompilationUnit compilationUnit = sourceCode.createCompilationUnit("com.example", "Test");

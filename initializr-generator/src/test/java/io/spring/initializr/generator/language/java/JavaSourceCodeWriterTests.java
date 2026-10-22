@@ -188,6 +188,28 @@ class JavaSourceCodeWriterTests {
 	}
 
 	@Test
+	void fieldImportWithQualifiedGenericArgument() throws IOException {
+		JavaSourceCode sourceCode = new JavaSourceCode();
+		JavaCompilationUnit compilationUnit = sourceCode.createCompilationUnit("com.example", "Test");
+		JavaTypeDeclaration test = compilationUnit.createTypeDeclaration("Test");
+		test.addFieldDeclaration(JavaFieldDeclaration.field("testString")
+			.modifiers(Modifier.PUBLIC)
+			.returning("com.another.One<java.lang.String>"));
+		String content = writeSingleTypeAsString(sourceCode, "com/example/Test.java");
+		assertThat(content).isEqualToIgnoringWhitespace("""
+				package com.example;
+
+				import com.another.One;
+
+				class Test {
+
+				    public One<java.lang.String> testString;
+
+				}
+				""");
+	}
+
+	@Test
 	void methodParameterWithGenerics() throws IOException {
 		JavaSourceCode sourceCode = new JavaSourceCode();
 		JavaCompilationUnit compilationUnit = sourceCode.createCompilationUnit("com.example", "Test");
